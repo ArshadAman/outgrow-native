@@ -1,5 +1,6 @@
 import React from "react";
 import { View, Text, Image, ScrollView, TouchableOpacity } from "react-native";
+import { useNavigation } from "@react-navigation/native";
 
 const techs = [
 	{
@@ -35,16 +36,19 @@ const techs = [
 ];
 
 export default function HomeScreen() {
+	const navigation = useNavigation();
+
 	return (
 		<View className="flex-1 bg-[#121516]">
 			<ScrollView className="flex-1" contentContainerStyle={{ paddingBottom: 24 }}>
 				<Text className="text-white text-2xl font-bold px-4 pt-5 pb-2">Explore Technologies</Text>
 				<View className="flex-row flex-wrap justify-between px-4">
 					{techs.map((tech, idx) => (
-						<View
+						<TouchableOpacity
 							key={tech.name}
 							className="w-[47%] bg-transparent mb-4"
 							style={{ maxWidth: "48%" }}
+							onPress={() => navigation.navigate("TechDetailScreen", { tech })}
 						>
 							<View className="flex flex-col gap-3 pb-3">
 								<Image
@@ -57,7 +61,7 @@ export default function HomeScreen() {
 									<Text className="text-[#a2afb3] text-sm">{tech.desc}</Text>
 								</View>
 							</View>
-						</View>
+						</TouchableOpacity>
 					))}
 				</View>
 			</ScrollView>
