@@ -32,14 +32,6 @@ export default function SavedScreen() {
 
   return (
     <View className="flex-1 bg-[#111618]">
-      {/* Title & Settings */}
-      <View className="flex-row items-center bg-[#111618] p-4 pb-2 justify-between">
-        <Text className="text-white text-lg font-bold flex-1 text-center pl-12">Saved</Text>
-        <TouchableOpacity className="w-12 items-end">
-          <Text className="text-white text-2xl">⚙️</Text>
-        </TouchableOpacity>
-      </View>
-
       {/* Tabs */}
       <View className="pb-3">
         <View className="flex-row border-b border-[#3b4e54] px-4 gap-8">
