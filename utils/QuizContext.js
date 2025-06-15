@@ -70,7 +70,7 @@ TaskManager.defineTask(QUIZ_TASK, async () => {
 // Function to fetch quiz from Gemini
 async function fetchQuizFromGemini(subject) {
   try {
-    const prompt = `Create a quiz with 10 multiple-choice questions on the topic of ${subject}.
+    const prompt = `Create a quiz with 5 multiple-choice questions on the topic of ${subject}.
     Format the response as a valid JSON object with this structure:
     {
       "subject": "${subject}",
@@ -78,7 +78,8 @@ async function fetchQuizFromGemini(subject) {
         {
           "question": "Question text here",
           "options": ["Option 1", "Option 2", "Option 3", "Option 4"],
-          "correctOptionIndex": correct_index_number_here
+          "correctOptionIndex": correct_index_number_here,
+          "explanation": "A thorough explanation of why the correct answer is right and why the other options are incorrect. Be educational and clear."
         }
       ]
     }
@@ -118,6 +119,11 @@ async function fetchQuizFromGemini(subject) {
               console.error("Invalid question data", q);
               return createFallbackQuiz(subject);
             }
+            
+            // Add explanation field if missing
+            if (!q.explanation) {
+              q.explanation = `The correct answer is "${q.options[q.correctOptionIndex]}", which is the most accurate option based on standard definitions and practices in ${subject}.`;
+            }
           }
           
           console.log("Quiz data successfully parsed and validated");
@@ -146,27 +152,32 @@ function createFallbackQuiz(subject) {
       {
         question: `What is a key concept in ${subject}?`,
         options: ["Abstraction", "Inheritance", "Polymorphism", "Encapsulation"],
-        correctOptionIndex: 0
+        correctOptionIndex: 0,
+        explanation: "Abstraction is a fundamental concept that involves simplifying complex systems by modeling classes based on their essential properties. It focuses on what an object does rather than how it does it, reducing complexity by hiding implementation details."
       },
       {
         question: `Which tool is most commonly used in ${subject}?`,
         options: ["Debugger", "Compiler", "IDE", "Version Control"],
-        correctOptionIndex: 2
+        correctOptionIndex: 2,
+        explanation: "Integrated Development Environments (IDEs) combine multiple tools including editors, compilers, debuggers, and code completion in one application. They are essential for efficient development, providing a complete toolset for coding, testing, and debugging."
       },
       {
         question: `A common challenge in ${subject} is:`,
         options: ["Memory management", "Performance optimization", "Security", "All of the above"],
-        correctOptionIndex: 3
+        correctOptionIndex: 3,
+        explanation: "All three options represent significant challenges in software development. Memory management prevents leaks, performance optimization ensures efficiency, and security protects against vulnerabilities. Together, they form the pillars of robust software engineering."
       },
       {
         question: `Which is NOT typically associated with ${subject}?`,
         options: ["Documentation", "Testing", "Marketing", "Design patterns"],
-        correctOptionIndex: 2
+        correctOptionIndex: 2,
+        explanation: "Marketing is not typically part of the technical development process. While documentation, testing, and design patterns are integral to software development, marketing is a business function that focuses on promoting the product rather than building it."
       },
       {
         question: `Best practice for ${subject} includes:`,
         options: ["Code reviews", "Continuous integration", "Test-driven development", "All of the above"],
-        correctOptionIndex: 3
+        correctOptionIndex: 3,
+        explanation: "All three practices are essential for high-quality software development. Code reviews catch bugs and share knowledge, continuous integration ensures code integrates smoothly, and test-driven development produces more reliable code. Together they form a comprehensive quality assurance approach."
       }
     ]
   };
