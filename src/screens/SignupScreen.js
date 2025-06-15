@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { View, Text, TextInput, TouchableOpacity, ActivityIndicator, Alert, Image } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { signupSchema } from '../utils/validation';
+import { register } from '../auth/authService';
 
 const SOCIALS = [
   { name: 'Google', icon: { uri: 'https://upload.wikimedia.org/wikipedia/commons/5/53/Google_%22G%22_Logo.svg' } },
@@ -23,12 +24,24 @@ export default function SignupScreen({ navigation }) {
     try {
       await signupSchema.validate(values, { abortEarly: false });
       setLoading(true);
-      setTimeout(async () => {
-        setLoading(false);
-        await AsyncStorage.setItem('token', 'dummy-signup-token');
+
+      try {
+        // Prepare user data
+        const userData = {
+          username: values.username,
+          password: values.password,
+          email: `${values.username}@example.com`, // Dummy email for demo
+        };
+        
+        // Register user
+        const result = await register(userData);
         Alert.alert('Signup Success', 'Account created!');
-        // navigation.navigate('MainTabs');
-      }, 1200);
+        navigation.navigate('LoginScreen');
+      } catch (apiError) {
+        Alert.alert('Signup Failed', apiError.message || 'Unable to create account');
+      }
+      
+      setLoading(false);
     } catch (err) {
       setLoading(false);
       if (err.name === 'ValidationError') {
@@ -44,7 +57,7 @@ export default function SignupScreen({ navigation }) {
   return (
     <View className="flex-1 bg-[#111618] justify-center px-6">
       <View className="items-center mb-10 mt-8">
-        <Image source={require('../assets/icon.png')} className="w-16 h-16 mb-4" style={{ borderRadius: 20 }} />
+        <Image source={require('../../assets/icon.png')} className="w-16 h-16 mb-4" style={{ borderRadius: 20 }} />
         <Text className="text-white text-4xl font-extrabold tracking-tight mb-2">Create Account</Text>
         <Text className="text-[#a2afb3] text-base">Sign up to start your journey</Text>
       </View>
