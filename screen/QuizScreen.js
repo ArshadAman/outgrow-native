@@ -253,6 +253,28 @@ export default function QuizScreen() {
                     )}
                   </View>
                 ))}
+                
+                {/* Explanation Section */}
+                <View className="mt-3 pt-3 border-t border-[#3b4e54]">
+                  <Text className="text-[#0cb9f2] text-sm font-medium mb-1">Explanation:</Text>
+                  <Text className="text-[#a2afb3] text-sm leading-5">
+                    {q.explanation || "The correct answer is " + q.options[correctAnswer] + ". This option is the most accurate based on standard definitions and practices in the field."}
+                  </Text>
+                </View>
+                
+                {/* Learning Tips - For wrong answers */}
+                {userAnswer !== undefined && userAnswer !== correctAnswer && (
+                  <View className="mt-3 bg-[#232D3F] p-3 rounded-lg">
+                    <Text className="text-[#ff9500] text-sm font-medium mb-1">💡 Learning Tip:</Text>
+                    <Text className="text-[#a2afb3] text-sm leading-5">
+                      {`You selected "${q.options[userAnswer]}". ${
+                        q.explanation 
+                          ? "Review the explanation above to understand why this isn't correct." 
+                          : `The correct answer is "${q.options[correctAnswer]}". Remember this for next time!`
+                      }`}
+                    </Text>
+                  </View>
+                )}
               </View>
             );
           })}
