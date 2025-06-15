@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { View, Text, TouchableOpacity, Alert, ScrollView, Image, Switch } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { useQuiz } from '../utils/QuizContext';
+import { useQuiz } from '../context/QuizContext';
+import { logout } from '../auth/authService';
 
 export default function ProfileScreen({ navigation }) {
   const { quizHistory } = useQuiz();
@@ -52,8 +53,7 @@ export default function ProfileScreen({ navigation }) {
         {
           text: 'Logout',
           onPress: async () => {
-            await AsyncStorage.removeItem('token');
-            await AsyncStorage.removeItem('user_data');
+            await logout();
             Alert.alert('Logged out', 'You have been logged out successfully');
             navigation.replace('LoginScreen');
           }

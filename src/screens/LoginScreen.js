@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { View, Text, TextInput, TouchableOpacity, ActivityIndicator, Alert, Image } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { loginSchema } from '../utils/validation';
+import { login } from '../auth/authService';
 
 const SOCIALS = [
   { name: 'Google', icon: { uri: 'https://upload.wikimedia.org/wikipedia/commons/5/53/Google_%22G%22_Logo.svg' } },
@@ -23,22 +24,17 @@ export default function LoginScreen({ navigation }) {
     try {
       await loginSchema.validate(values, { abortEarly: false });
       setLoading(true);
-      console.log('Login values:', values); // Debug log
-      const res = await fetch('https://dummyjson.com/auth/login', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(values),
-      });
-      const data = await res.json();
-    //   console.log('API response:', data); // Debug log
-      setLoading(false);
-      if (data.accessToken) {
-        await AsyncStorage.setItem('token', data.accessToken);
+      
+      try {
+        const userData = await login(values.username, values.password);
         Alert.alert('Login Success', 'Welcome back!');
         navigation.replace('MainTabs');
-      } else {
-        Alert.alert('Login Failed', data.message || 'Invalid credentials');
+      } catch (apiError) {
+        Alert.alert('Login Failed', apiError.message || 'Invalid credentials');
       }
+      
+      setLoading(false);
+    
     } catch (err) {
       setLoading(false);
       if (err.name === 'ValidationError') {
@@ -54,7 +50,7 @@ export default function LoginScreen({ navigation }) {
   return (
     <View className="flex-1 bg-[#111618] justify-center px-6">
       <View className="items-center mb-10 mt-8">
-        <Image source={require('../assets/icon.png')} className="w-16 h-16 mb-4" style={{ borderRadius: 20 }} />
+        <Image source={require('../../assets/icon.png')} className="w-16 h-16 mb-4" style={{ borderRadius: 20 }} />
         <Text className="text-white text-4xl font-extrabold tracking-tight mb-2">Welcome</Text>
         <Text className="text-[#a2afb3] text-base">Sign in to continue your journey</Text>
       </View>

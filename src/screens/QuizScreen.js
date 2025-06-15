@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { View, Text, TouchableOpacity, ScrollView, ActivityIndicator, Alert } from "react-native";
-import { useQuiz } from "../utils/QuizContext";
+import { useQuiz } from "../context/QuizContext";
 import Timer from "../components/Timer";
 
 export default function QuizScreen() {

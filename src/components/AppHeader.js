@@ -9,11 +9,12 @@ export default function AppHeader() {
           source={{
             uri: "https://lh3.googleusercontent.com/aida-public/AB6AXuCZSefA3wU9gt3EaTBz0RjPEf06zLR45NAl2l1rMkhM90PCIwvSrJmh6v0a788urRT3kDUDoGJgVf0etvigg8GG9I-QLD2uw27-HDCrWb2MhGz11Z57NjynKgb1HOGwas1yZQY3NGrHmA43xb8n2gBtTIFIIhbeiFordwVvuCS-XbPfLtZk0mr92hjYMnioWSlVgIr7KQDW2OuqeR3wupseZ4nsrCBLXJban90LECk_gL5M7EvHcD2qv0qIqVMvBIx7o12V2l_tEIAE",
           }}
-          className="rounded-full w-8 h-8"
+          className="size-12 rounded-xl"
         />
       </View>
-      <TouchableOpacity className="w-12 items-end">
-        <Text className="text-white text-2xl">⚙️</Text>
+      <Text className="text-white text-xl font-bold">OutGrow</Text>
+      <TouchableOpacity className="size-12 items-center justify-center">
+        <Text className="text-2xl">🔍</Text>
       </TouchableOpacity>
     </View>
   );
