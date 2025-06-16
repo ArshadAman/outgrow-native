@@ -3,6 +3,7 @@ import { View, Text, ScrollView, TouchableOpacity, Alert } from 'react-native';
 import { useRoute, useNavigation } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { SafeAreaView } from 'react-native-safe-area-context';
 
 export default function SavedQuizzesDetail() {
   const route = useRoute();
@@ -52,7 +53,7 @@ export default function SavedQuizzesDetail() {
   };
 
   return (
-    <View className="flex-1 bg-[#111618]">
+    <SafeAreaView className="flex-1 bg-[#111618]">
       {/* Header */}
       <View className="flex-row items-center p-4 border-b border-[#3b4e54]">
         <TouchableOpacity
@@ -144,6 +145,6 @@ export default function SavedQuizzesDetail() {
           </View>
         ))}
       </ScrollView>
-    </View>
+    </SafeAreaView>
   );
 } 

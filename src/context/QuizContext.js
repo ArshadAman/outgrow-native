@@ -1,20 +1,11 @@
 import React, { createContext, useState, useContext, useEffect } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as Notifications from 'expo-notifications';
-import * as TaskManager from 'expo-task-manager';
 import { Platform } from 'react-native';
 import { fetchQuizFromGemini, createFallbackQuiz } from '../api/quizApi';
 
 // Constants
-const QUIZ_TASK = 'FETCH_QUIZ_TASK';
 const QUIZ_NOTIFICATION_CHANNEL = 'quiz-notifications';
-const SCHEDULE_KEYS = {
-  morning: 'quiz-morning',
-  noon: 'quiz-noon', 
-  afternoon: 'quiz-afternoon',
-  evening: 'quiz-evening',
-  night: 'quiz-night'
-};
 
 // Define the subjects for quizzes
 export const SUBJECTS = [
@@ -32,39 +23,13 @@ export const QuizContext = createContext({
   isLoading: false,
   quizHistory: [],
   timerDuration: 300, // 5 minutes in seconds
+  notificationsEnabled: false,
   fetchQuiz: () => {},
   startQuiz: () => {},
   submitAnswer: () => {},
   finishQuiz: () => {},
-});
-
-// Define task handler for background quiz fetching
-TaskManager.defineTask(QUIZ_TASK, async () => {
-  try {
-    // Generate a random subject
-    const subjectIndex = Math.floor(Math.random() * SUBJECTS.length);
-    const subject = SUBJECTS[subjectIndex];
-    
-    // Fetch a quiz from Gemini
-    const quiz = await fetchQuizFromGemini(subject);
-    
-    // Save to AsyncStorage
-    if (quiz) {
-      await AsyncStorage.setItem('latest_quiz', JSON.stringify({
-        quiz,
-        timestamp: new Date().toISOString(),
-        subject
-      }));
-    
-      // Send notification
-      await sendQuizNotification(subject);
-    }
-    
-    return { result: true };
-  } catch (error) {
-    console.error('Background task failed:', error);
-    return { result: false };
-  }
+  toggleNotifications: () => {},
+  sendTestNotification: () => {},
 });
 
 // Configure notifications
@@ -76,8 +41,15 @@ Notifications.setNotificationHandler({
   }),
 });
 
-// Function to send quiz notification
-async function sendQuizNotification(subject) {
+// Function to schedule random quiz notifications
+async function scheduleRandomQuizNotifications() {
+  // Request notification permissions
+  const { status } = await Notifications.requestPermissionsAsync();
+  if (status !== 'granted') {
+    console.log('Notification permission not granted');
+    return false;
+  }
+
   // Create notification channel for Android
   if (Platform.OS === 'android') {
     await Notifications.setNotificationChannelAsync(QUIZ_NOTIFICATION_CHANNEL, {
@@ -85,63 +57,108 @@ async function sendQuizNotification(subject) {
       importance: Notifications.AndroidImportance.HIGH,
       vibrationPattern: [0, 250, 250, 250],
       lightColor: '#0CB9F2',
+      sound: 'default',
     });
   }
 
-  // Send notification
-  await Notifications.scheduleNotificationAsync({
-    content: {
-      title: `New ${subject} Quiz Ready!`,
-      body: 'Test your knowledge with 5 quick questions. Tap to start!',
-      data: { screen: 'QuizScreen' },
-    },
-    trigger: null, // Send immediately
-  });
+  // Cancel any existing notifications
+  await Notifications.cancelAllScheduledNotificationsAsync();
+
+  // Schedule 5 daily notifications at different times with random subjects
+  const times = [
+    { hour: 8, minute: 30 },   // 8:30 AM
+    { hour: 12, minute: 0 },   // 12:00 PM
+    { hour: 15, minute: 30 },  // 3:30 PM
+    { hour: 18, minute: 0 },   // 6:00 PM
+    { hour: 21, minute: 0 }    // 9:00 PM
+  ];
+
+  const motivationalMessages = [
+    'Ready to challenge your brain? 🧠',
+    'Time for a quick knowledge boost! ⚡',
+    'Let\'s test what you know! 🎯',
+    'Brain training time! 💪',
+    'Quick quiz break! 📚'
+  ];
+
+  for (const time of times) {
+    // Get random subject and message
+    const randomSubject = SUBJECTS[Math.floor(Math.random() * SUBJECTS.length)];
+    const randomMessage = motivationalMessages[Math.floor(Math.random() * motivationalMessages.length)];
+
+    try {
+      const notificationId = await Notifications.scheduleNotificationAsync({
+        content: {
+          title: `${randomSubject} Quiz! 🎓`,
+          body: `${randomMessage} Topic: ${randomSubject}`,
+          data: { 
+            screen: 'QuizScreen',
+            subject: randomSubject,
+            type: 'daily_quiz'
+          },
+          sound: 'default',
+        },
+        trigger: {
+          hour: time.hour,
+          minute: time.minute,
+          repeats: true,
+        },
+      });
+      
+      console.log(`Scheduled notification for ${randomSubject} at ${time.hour}:${time.minute.toString().padStart(2, '0')}`);
+    } catch (error) {
+      console.error('Error scheduling notification:', error);
+    }
+  }
+
+  // Schedule a test notification in 10 seconds
+  try {
+    const testSubject = SUBJECTS[Math.floor(Math.random() * SUBJECTS.length)];
+    await Notifications.scheduleNotificationAsync({
+      content: {
+        title: 'Welcome to OutGrow! 🎉',
+        body: `Notifications are now active! Here's a ${testSubject} quiz to get started.`,
+        data: { 
+          screen: 'QuizScreen',
+          subject: testSubject,
+          type: 'welcome'
+        },
+      },
+      trigger: { seconds: 10 }
+    });
+    console.log('Test notification scheduled');
+  } catch (error) {
+    console.error('Error scheduling test notification:', error);
+  }
+
+  return true;
 }
 
-// Schedule the quiz notifications
-async function scheduleQuizNotifications() {
-  // Cancel existing tasks first
-  await TaskManager.unregisterAllTasksAsync();
-  
-  // Schedule 5 daily notifications at different times
-  const schedules = [
-    { hour: 8, minute: 0, key: SCHEDULE_KEYS.morning },    // 8:00 AM
-    { hour: 12, minute: 0, key: SCHEDULE_KEYS.noon },      // 12:00 PM
-    { hour: 15, minute: 30, key: SCHEDULE_KEYS.afternoon },// 3:30 PM
-    { hour: 18, minute: 0, key: SCHEDULE_KEYS.evening },   // 6:00 PM
-    { hour: 21, minute: 0, key: SCHEDULE_KEYS.night }      // 9:00 PM
-  ];
-  
-  // Register for notifications permission
-  const { status } = await Notifications.requestPermissionsAsync();
-  if (status !== 'granted') {
-    console.log('Notification permission not granted');
-    return;
+// Function to send immediate quiz notification
+async function sendTestNotification() {
+  try {
+    const randomSubject = SUBJECTS[Math.floor(Math.random() * SUBJECTS.length)];
+    
+    await Notifications.scheduleNotificationAsync({
+      content: {
+        title: `Test: ${randomSubject} Quiz! 🔔`,
+        body: 'This is a test notification. Tap to start the quiz!',
+        data: { 
+          screen: 'QuizScreen',
+          subject: randomSubject,
+          type: 'test'
+        },
+        sound: 'default',
+      },
+      trigger: null, // Send immediately
+    });
+    
+    console.log('Test notification sent for:', randomSubject);
+    return true;
+  } catch (error) {
+    console.error('Error sending test notification:', error);
+    return false;
   }
-  
-  // Register background fetch task (this will be simulated in development)
-  await TaskManager.registerTaskAsync(QUIZ_TASK, {
-    minimumInterval: 3600, // 1 hour minimum
-    stopOnTerminate: false,
-    startOnBoot: true,
-  });
-  
-  // In a production app, you'd set up a server to send push notifications
-  // at these times. For this demo, we'll use scheduled notifications
-  // to simulate the experience.
-  
-  // For this demo, let's create one scheduled task in 15 seconds to test
-  const testNotificationId = await Notifications.scheduleNotificationAsync({
-    content: {
-      title: 'First Quiz Ready!',
-      body: 'Test your knowledge with 5 quick questions. Tap to start!',
-      data: { screen: 'QuizScreen' },
-    },
-    trigger: { seconds: 15 }
-  });
-  
-  console.log('Test notification scheduled with ID:', testNotificationId);
 }
 
 // QuizProvider component
@@ -153,36 +170,71 @@ export const QuizProvider = ({ children }) => {
   const [selectedAnswers, setSelectedAnswers] = useState([]);
   const [timerDuration, setTimerDuration] = useState(300); // 5 min in seconds
   const [quizFinished, setQuizFinished] = useState(false);
+  const [notificationsEnabled, setNotificationsEnabled] = useState(false);
 
-  // Listen for notification clicks
+  // Listen for notification clicks and initialize
   useEffect(() => {
     const subscription = Notifications.addNotificationResponseReceivedListener(response => {
-      // This will be handled by the navigation container's linking
       console.log('Notification clicked:', response);
+      
+      // Extract subject from notification data
+      const notificationData = response.notification.request.content.data;
+      if (notificationData?.subject) {
+        // Fetch quiz for the specific subject
+        fetchQuiz(notificationData.subject);
+      }
     });
     
-    // Schedule quiz notifications
-    scheduleQuizNotifications();
-    
-    // Check for any stored quiz
-    loadLatestQuiz();
+    // Load initial data
+    loadQuizHistory();
+    loadNotificationSettings();
 
     return () => subscription.remove();
   }, []);
 
-  // Load the latest quiz from storage
-  const loadLatestQuiz = async () => {
+  // Load notification settings
+  const loadNotificationSettings = async () => {
     try {
-      const latestQuizData = await AsyncStorage.getItem('latest_quiz');
-      if (latestQuizData) {
-        const parsed = JSON.parse(latestQuizData);
-        // Don't set as current automatically, just keep it ready
-        if (parsed && parsed.quiz) {
-          setCurrentQuiz(parsed.quiz);
-        }
+      const enabled = await AsyncStorage.getItem('notifications_enabled');
+      setNotificationsEnabled(enabled === 'true');
+    } catch (error) {
+      console.error('Error loading notification settings:', error);
+    }
+  };
+
+  // Load quiz history from storage
+  const loadQuizHistory = async () => {
+    try {
+      const historyData = await AsyncStorage.getItem('quiz_history');
+      if (historyData) {
+        setQuizHistory(JSON.parse(historyData));
       }
     } catch (error) {
-      console.error('Error loading latest quiz:', error);
+      console.error('Error loading quiz history:', error);
+    }
+  };
+
+  // Toggle notifications
+  const toggleNotifications = async (enabled) => {
+    try {
+      if (enabled) {
+        const success = await scheduleRandomQuizNotifications();
+        if (success) {
+          setNotificationsEnabled(true);
+          await AsyncStorage.setItem('notifications_enabled', 'true');
+          return true;
+        }
+        return false;
+      } else {
+        await Notifications.cancelAllScheduledNotificationsAsync();
+        setNotificationsEnabled(false);
+        await AsyncStorage.setItem('notifications_enabled', 'false');
+        console.log('All notifications cancelled');
+        return true;
+      }
+    } catch (error) {
+      console.error('Error toggling notifications:', error);
+      return false;
     }
   };
 
@@ -196,10 +248,14 @@ export const QuizProvider = ({ children }) => {
     
     try {
       const subject = forceSubject || SUBJECTS[Math.floor(Math.random() * SUBJECTS.length)];
+      console.log('Fetching quiz for subject:', subject);
       const quizData = await fetchQuizFromGemini(subject);
       
       if (quizData) {
-        setCurrentQuiz(quizData);
+        setCurrentQuiz({
+          ...quizData,
+          subject: subject // Ensure subject is included
+        });
         
         // Save to AsyncStorage
         await AsyncStorage.setItem('latest_quiz', JSON.stringify({
@@ -207,6 +263,8 @@ export const QuizProvider = ({ children }) => {
           timestamp: new Date().toISOString(),
           subject
         }));
+        
+        console.log('Quiz fetched successfully for:', subject);
       }
     } catch (error) {
       console.error('Error fetching quiz:', error);
@@ -304,10 +362,13 @@ export const QuizProvider = ({ children }) => {
         selectedAnswers,
         timerDuration,
         quizFinished,
+        notificationsEnabled,
         fetchQuiz,
         startQuiz,
         submitAnswer,
         finishQuiz,
+        toggleNotifications,
+        sendTestNotification,
       }}
     >
       {children}

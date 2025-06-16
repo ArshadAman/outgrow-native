@@ -1,6 +1,7 @@
 import React from "react";
 import { View, Text, ScrollView, TouchableOpacity, Image } from "react-native";
 import { FULL_TIP_CONTENT, RELATED_TECH } from "../config/tipData";
+import { SafeAreaView } from "react-native-safe-area-context";
 
 function renderMarkdownWithCodeBlocks(text) {
   // Handle null or undefined text
@@ -93,7 +94,7 @@ export default function TipDetailScreen({ route, navigation }) {
   }
   
   return (
-    <View className="flex-1 bg-[#111618]">
+    <SafeAreaView className="flex-1 bg-[#111618]">
       <View className="flex-row items-center bg-[#111618] p-4 pb-2">
         <TouchableOpacity onPress={() => navigation.goBack()} className="pr-4">
           <Text className="text-[#0cb9f2] text-2xl">←</Text>
@@ -119,6 +120,6 @@ export default function TipDetailScreen({ route, navigation }) {
           {renderMarkdownWithCodeBlocks(tip?.desc)}
         </View>
       </ScrollView>
-    </View>
+    </SafeAreaView>
   );
 }
