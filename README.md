@@ -1,6 +1,6 @@
 # OutGrow App
 
-A mobile learning platform for tech skill development with interactive quizzes and educational content.
+A mobile learning platform for tech skill development with interactive quizzes and educational content
 
 ## Project Structure
 
