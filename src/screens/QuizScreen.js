@@ -2,6 +2,8 @@ import React, { useState, useEffect } from "react";
 import { View, Text, TouchableOpacity, ScrollView, ActivityIndicator, Alert } from "react-native";
 import { useQuiz } from "../context/QuizContext";
 import Timer from "../components/Timer";
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { Ionicons } from '@expo/vector-icons';
 
 export default function QuizScreen() {
   const {
@@ -21,6 +23,7 @@ export default function QuizScreen() {
   const [showResults, setShowResults] = useState(false);
   const [score, setScore] = useState(0);
   const [quizStarted, setQuizStarted] = useState(false);
+  const [savedQuizzes, setSavedQuizzes] = useState({});
   
   useEffect(() => {
     // Reset local selected state when current question changes
@@ -153,6 +156,50 @@ export default function QuizScreen() {
     ]);
   };
   
+  // Add this useEffect to load saved quizzes
+  useEffect(() => {
+    loadSavedQuizzes();
+  }, []);
+
+  // Add these new functions
+  const loadSavedQuizzes = async () => {
+    try {
+      const saved = await AsyncStorage.getItem('saved_quizzes');
+      if (saved) {
+        setSavedQuizzes(JSON.parse(saved));
+      }
+    } catch (error) {
+      console.error('Error loading saved quizzes:', error);
+    }
+  };
+
+  const toggleSaveQuiz = async (questionIndex) => {
+    try {
+      const question = currentQuiz.questions[questionIndex];
+      const quizKey = `${currentQuiz.subject}_${questionIndex}`;
+      const newSavedQuizzes = { ...savedQuizzes };
+      
+      if (newSavedQuizzes[quizKey]) {
+        delete newSavedQuizzes[quizKey];
+      } else {
+        newSavedQuizzes[quizKey] = {
+          subject: currentQuiz.subject,
+          question: question.question,
+          options: question.options,
+          correctAnswer: question.correctOptionIndex,
+          explanation: question.explanation,
+          userAnswer: selectedAnswers[questionIndex],
+          timestamp: new Date().toISOString()
+        };
+      }
+      
+      await AsyncStorage.setItem('saved_quizzes', JSON.stringify(newSavedQuizzes));
+      setSavedQuizzes(newSavedQuizzes);
+    } catch (error) {
+      console.error('Error saving quiz:', error);
+    }
+  };
+  
   // Render loading state
   if (isLoading) {
     return (
@@ -215,12 +262,26 @@ export default function QuizScreen() {
             const userAnswer = selectedAnswers[idx];
             const correctAnswer = q.correctOptionIndex;
             const isCorrect = userAnswer === correctAnswer;
+            const quizKey = `${currentQuiz.subject}_${idx}`;
+            const isSaved = savedQuizzes[quizKey];
             
             return (
               <View key={idx} className="mb-8 bg-[#181F2A] rounded-xl p-4">
-                <Text className="text-white text-lg font-medium mb-3">
-                  {idx + 1}. {q.question}
-                </Text>
+                <View className="flex-row justify-between items-start mb-3">
+                  <Text className="text-white text-lg font-medium flex-1 mr-2">
+                    {idx + 1}. {q.question}
+                  </Text>
+                  <TouchableOpacity
+                    onPress={() => toggleSaveQuiz(idx)}
+                    className="p-2"
+                  >
+                    <Ionicons
+                      name={isSaved ? "bookmark" : "bookmark-outline"}
+                      size={24}
+                      color={isSaved ? "#0cb9f2" : "#a2afb3"}
+                    />
+                  </TouchableOpacity>
+                </View>
                 
                 {q.options.map((option, optIdx) => (
                   <View 
