@@ -2,6 +2,8 @@
 
 A mobile learning platform for tech skill development with interactive quizzes and educational content.
 
+Test change: This is a testing changes.
+
 ## Project Structure
 
 ```
