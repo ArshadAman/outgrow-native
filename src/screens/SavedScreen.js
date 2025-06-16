@@ -2,6 +2,7 @@ import React, { useState } from "react";
 import { View, Text, TouchableOpacity, ScrollView, ActivityIndicator } from "react-native";
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
+import { SafeAreaView } from "react-native-safe-area-context";
 
 const tabList = ["Quizzes", "Tips"];
 
@@ -53,13 +54,10 @@ export default function SavedScreen() {
   }
 
   return (
-    <View className="flex-1 bg-[#111618]">
+    <SafeAreaView className="flex-1 bg-[#111618]">
       {/* Title & Settings */}
       <View className="flex-row items-center bg-[#111618] p-4 pb-2 justify-between">
-        <Text className="text-white text-lg font-bold flex-1 text-center pl-12">Saved</Text>
-        <TouchableOpacity className="w-12 items-end">
-          <Text className="text-white text-2xl">⚙️</Text>
-        </TouchableOpacity>
+        <Text className="text-white text-2xl font-bold flex-1 text-center">Saved</Text>
       </View>
 
       {/* Tabs */}
@@ -105,6 +103,6 @@ export default function SavedScreen() {
           </View>
         )}
       </ScrollView>
-    </View>
+    </SafeAreaView>
   );
 }

@@ -1,37 +1,38 @@
 import React from "react";
 import { View, Text, Image, ScrollView, TouchableOpacity } from "react-native";
 import { useNavigation } from "@react-navigation/native";
+import { SafeAreaView } from "react-native-safe-area-context";
 
 const techs = [
 	{
 		name: "Python",
 		desc: "Versatile language for web, data science, and more.",
-		img: "https://lh3.googleusercontent.com/aida-public/AB6AXuCZSefA3wU9gt3EaTBz0RjPEf06zLR45NAl2l1rMkhM90PCIwvSrJmh6v0a788urRT3kDUDoGJgVf0etvigg8GG9I-QLD2uw27-HDCrWb2MhGz11Z57NjynKgb1HOGwas1yZQY3NGrHmA43xb8n2gBtTIFIIhbeiFordwVvuCS-XbPfLtZk0mr92hjYMnioWSlVgIr7KQDW2OuqeR3wupseZ4nsrCBLXJban90LECk_gL5M7EvHcD2qv0qIqVMvBIx7o12V2l_tEIAE",
+		img: "https://upload.wikimedia.org/wikipedia/commons/thumb/c/c3/Python-logo-notext.svg/150px-Python-logo-notext.svg.png",
 	},
 	{
 		name: "JavaScript",
 		desc: "The language of the web, powering interactive experiences.",
-		img: "https://lh3.googleusercontent.com/aida-public/AB6AXuB47OhRqgFnZGqCipi5H-bzHx0QvJ6KUnGXEDBGn_7M276bKQuPD4ZNsxdo7MtxPZrI27UCg-hYZN0dx4jsm7woibj2i9HqRlphwEbO8FfYCcVLvJOzP3uSkFccl-_7blnRA1DMuOQJA-5esbWeWV4JznZQVbW0Nbs_khJQjY6Q2-fH1V5y1bXiEtPIg1oCaDQS-87cInM3oxloCgTPaGsMSKVITITDmT6yYMCPH3GnjUXXBiP8s6hYqeMCotbEev1OgxnTm6ViNWDw",
+		img: "https://upload.wikimedia.org/wikipedia/commons/6/6a/JavaScript-logo.png",
 	},
 	{
 		name: "React",
 		desc: "A popular library for building user interfaces.",
-		img: "https://lh3.googleusercontent.com/aida-public/AB6AXuDYgKH5WSza9UEHEwwcgbvFMpJIywxtblm8yyJ2bCWbwHUv7OjvHQHSuRZrDslJ-6odIC7ynxva00SrZRhAAoxdYvUu9gwco4xoV5NhLERJTKVCCfrF2JsnL77FLEW6_JYlouV7d6eiu6VBPzeIaRQm2X2_-LPIlW62VcUaSm1K6ChmY-5qhJqqMiBJo9EuOE-nkYxwiXfOpOxRJmJU9FLTXwZ2ENcKcR7jOtOQi7ySsqFQpftJTA7tUGH13OiQVMp4E6Dw4FCp9OXF",
+		img: "https://upload.wikimedia.org/wikipedia/commons/thumb/a/a7/React-icon.svg/512px-React-icon.svg.png",
 	},
 	{
 		name: "Angular",
 		desc: "A comprehensive framework for scalable web apps.",
-		img: "https://lh3.googleusercontent.com/aida-public/AB6AXuBNeOmWBctW7Rovh9mfkKpxZkeIKmHuvM-txF78o9ImND3u15BrZd6PWBSIf0RNFGAIog_QTAnK8ZQM7zBawS0TeHXi2P1Urcej25ebEtw6F_Lou80H1f0unA83S9L8CzP_tBJ7K7y2j-jrhZAdXQcxrQtdPtsrFtofLW33ZeJ7p2B5TcXg2TDQ-U90BIvQ-JYmWyLGq32ohWSdUTyvjsqb4jRwli0BAR9aEYNfuCXp6XxFnuaQ-Y2JTQRc-xrxrNX7oHy-n57dthpK",
+		img: "https://upload.wikimedia.org/wikipedia/commons/thumb/c/cf/Angular_full_color_logo.svg/512px-Angular_full_color_logo.svg.png",
 	},
 	{
 		name: "Flutter",
 		desc: "Google's UI toolkit for building natively compiled apps.",
-		img: "https://lh3.googleusercontent.com/aida-public/AB6AXuBMZK_UbBlVxkGQKFnJrbgDxm9i6NBrYwpJJTQZQVOCrQ6llkjfixOZKlcc5DmmYLvW_p_fVONUKhgIpqHAi0a268I6cPBgttjdP0s1QcBAsfQjkond_CmQo0JYneobNAlK8l1IDpP8h41yxNL9glZ9XKWmM5EZxpEOhHKZAyl38icUqpfmcvh2snngfyMxdxw8vSoWaUSbgjqzoqtzNuQAFWdf9fwAMvSKLUN6WtLUOzhXQoVFVtdx2KqcEShpaRqAMzZFNWp-ou2S",
+		img: "https://storage.googleapis.com/cms-storage-bucket/0dbfcc7a59cd1cf16282.png",
 	},
 	{
 		name: "Django",
 		desc: "A high-level Python web framework for rapid development.",
-		img: "https://lh3.googleusercontent.com/aida-public/AB6AXuChQDbGjaIax5uxiVRb4LZCoDiTGpVgdWS6XWHOWfzcfzsgVGgEKPhBb7mUusH2Il0n8IR2L3A5Z0O6Wa5SeOyiLUs8Xm9aYtfcewvujGuAKq23ComEDJxrJfbLOqrx2JN4E6EBk_Vk_PWqu9YJLq3sac2sVjsMtCmhj2JtNF6Uj3xsc54rhIo0T-FTO13Q2z9dZIqn1OvEXlDOVLUi23WNfD_ImVAB100LMG9A0DIIThPYQrrPm5mDKGWC4zpVm2hOknzZDUJ3Qp9c",
+		img: "https://upload.wikimedia.org/wikipedia/commons/4/45/Django_logo.png",
 	},
 ];
 
@@ -39,10 +40,10 @@ export default function HomeScreen() {
 	const navigation = useNavigation();
 
 	return (
-		<View className="flex-1 bg-[#121516]">
+		<SafeAreaView className="flex-1 bg-[#121516]">
 			<ScrollView className="flex-1" contentContainerStyle={{ paddingBottom: 24 }}>
 				<Text className="text-white text-2xl font-bold px-4 pt-5 pb-2">Explore Technologies</Text>
-				<View className="flex-row flex-wrap justify-between px-4">
+				<View className="flex-row flex-wrap justify-between px-4 my-6">
 					{techs.map((tech, idx) => (
 						<TouchableOpacity
 							key={tech.name}
@@ -54,7 +55,7 @@ export default function HomeScreen() {
 								<Image
 									source={{ uri: tech.img }}
 									className="w-full aspect-square rounded-xl"
-									resizeMode="cover"
+									resizeMode="contain"
 								/>
 								<View>
 									<Text className="text-white text-base font-medium">{tech.name}</Text>
@@ -65,6 +66,6 @@ export default function HomeScreen() {
 					))}
 				</View>
 			</ScrollView>
-		</View>
+		</SafeAreaView>
 	);
 }

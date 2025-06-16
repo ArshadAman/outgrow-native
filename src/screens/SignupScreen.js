@@ -1,5 +1,16 @@
 import React, { useState } from 'react';
-import { View, Text, TextInput, TouchableOpacity, ActivityIndicator, Alert, Image } from 'react-native';
+import { 
+  View, 
+  Text, 
+  TextInput, 
+  TouchableOpacity, 
+  ActivityIndicator, 
+  Alert, 
+  Image, 
+  StatusBar,
+  SafeAreaView,
+  Dimensions 
+} from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { signupSchema } from '../utils/validation';
 import { register } from '../auth/authService';
@@ -55,68 +66,131 @@ export default function SignupScreen({ navigation }) {
   };
 
   return (
-    <View className="flex-1 bg-[#111618] justify-center px-6">
-      <View className="items-center mb-10 mt-8">
-        <Image source={require('../../assets/icon.png')} className="w-16 h-16 mb-4" style={{ borderRadius: 20 }} />
-        <Text className="text-white text-4xl font-extrabold tracking-tight mb-2">Create Account</Text>
-        <Text className="text-[#a2afb3] text-base">Sign up to start your journey</Text>
+    <SafeAreaView className="flex-1 bg-[#111618]">
+      <StatusBar barStyle="light-content" backgroundColor="#111618" />
+      <View className="h-16"></View>
+      
+      {/* Top image - large illustration */}
+      <Image
+        source={require("../../assets/icon.png")}
+        className="w-64 h-64 mx-auto rounded-full"
+        resizeMode="contain"
+      />
+      
+      {/* Sign up heading - matching login design */}
+      <Text className="mx-[21px] mt-5 text-3xl text-center font-bold text-white leading-[48px] tracking-wide">
+        Create Your Account
+      </Text>
+      
+      <TouchableOpacity
+        className="mx-[21px] mt-[20px] h-16 bg-[#181F2A] rounded-xl border border-[#3b4e54] flex-row items-center justify-center"
+        activeOpacity={0.8}
+      >
+        {/* Google icon */}
+        <View className="w-8 h-8 mr-[10px]">
+          <Image
+            source={{ uri: "https://img.icons8.com/plasticine/100/google-logo.png" }}
+            className="w-8 h-8"
+            resizeMode="contain"
+          />
+        </View>
+        <Text className="text-2xl font-medium text-white">
+          Sign up with Google
+        </Text>
+      </TouchableOpacity>
+      
+      {/* Divider with text */}
+      <View className="flex-row items-center mx-[21px] mt-[20px]">
+        <View className="flex-1 h-[1px] bg-[#3b4e54] opacity-70" />
+        <Text className="mx-2.5 bg-[#111618] text-[#a2afb3] text-base">
+          or sign up with email
+        </Text>
+        <View className="flex-1 h-[1px] bg-[#3b4e54] opacity-70" />
       </View>
-      <View className="mb-4">
+      
+      {/* Form fields - positioned exactly as in login design */}
+      <View className="mx-[21px] mt-[10px]">
+        {/* Username field label */}
+        <Text className="text-xl font-normal text-white mb-[10px]">
+          Username
+        </Text>
+        
+        {/* Username input */}
         <TextInput
-          className="bg-[#181F2A] text-white rounded-2xl px-5 py-4 mb-2 text-base shadow-sm"
-          placeholder="Username"
+          className="w-[100%] h-16 bg-[#232D3F] rounded-md mb-[10px] px-4 text-white border border-[#3b4e54]"
           placeholderTextColor="#a2afb3"
+          placeholder="Enter your username"
           value={values.username}
           onChangeText={v => handleChange('username', v)}
           autoCapitalize="none"
         />
-        {errors.username && <Text className="text-red-400 mb-2 text-xs">{errors.username}</Text>}
+        {errors.username && (
+          <Text className="text-[#ff3b30] mb-1 text-xs">{errors.username}</Text>
+        )}
+        
+        {/* Password field */}
+        <Text className="text-xl font-normal text-white mb-[10px]">
+          Password
+        </Text>
+        
+        {/* Password input */}
         <TextInput
-          className="bg-[#181F2A] text-white rounded-2xl px-5 py-4 mb-2 text-base shadow-sm"
-          placeholder="Password"
+          className="w-[100%] h-16 bg-[#232D3F] rounded-md mb-[10px] px-4 text-white border border-[#3b4e54]"
           placeholderTextColor="#a2afb3"
+          placeholder="Enter your password"
           value={values.password}
           onChangeText={v => handleChange('password', v)}
           secureTextEntry
         />
-        {errors.password && <Text className="text-red-400 mb-2 text-xs">{errors.password}</Text>}
+        {errors.password && (
+          <Text className="text-[#ff3b30] mb-1 text-xs">{errors.password}</Text>
+        )}
+        
+        {/* Confirm Password field */}
+        <Text className="text-xl font-normal text-white mb-[10px]">
+          Confirm Password
+        </Text>
+        
+        {/* Confirm Password input */}
         <TextInput
-          className="bg-[#181F2A] text-white rounded-2xl px-5 py-4 mb-2 text-base shadow-sm"
-          placeholder="Confirm Password"
+          className="w-[100%] h-16 bg-[#232D3F] rounded-md mb-[10px] px-4 text-white border border-[#3b4e54]"
           placeholderTextColor="#a2afb3"
+          placeholder="Confirm your password"
           value={values.confirmPassword}
           onChangeText={v => handleChange('confirmPassword', v)}
           secureTextEntry
         />
-        {errors.confirmPassword && <Text className="text-red-400 mb-2 text-xs">{errors.confirmPassword}</Text>}
+        {errors.confirmPassword && (
+          <Text className="text-[#ff3b30] mb-1 text-xs">{errors.confirmPassword}</Text>
+        )}
       </View>
-      <TouchableOpacity
-        className="bg-[#0cb9f2] rounded-2xl py-4 items-center mb-6 shadow-lg"
-        onPress={handleSignup}
-        disabled={loading}
-        activeOpacity={0.8}
-        style={{ shadowColor: '#0cb9f2', shadowOpacity: 0.2, shadowRadius: 8, elevation: 4 }}
-      >
-        {loading ? <ActivityIndicator color="#111618" /> : <Text className="text-[#111618] text-lg font-bold">Sign Up</Text>}
-      </TouchableOpacity>
-      <View className="flex-row items-center my-4">
-        <View className="flex-1 h-px bg-[#232D3F]" />
-        <Text className="text-[#a2afb3] mx-3">or sign up with</Text>
-        <View className="flex-1 h-px bg-[#232D3F]" />
-      </View>
-      <View className="flex-row justify-center mb-8">
-        {SOCIALS.map(s => (
-          <TouchableOpacity key={s.name} className="mx-3 bg-[#181F2A] rounded-full p-4 shadow" activeOpacity={0.8}>
-            <Image source={s.icon} className="w-7 h-7" />
-          </TouchableOpacity>
-        ))}
-      </View>
-      <View className="flex-row justify-center">
-        <Text className="text-[#a2afb3]">Already have an account? </Text>
-        <TouchableOpacity onPress={() => navigation.navigate('LoginScreen')}>
-          <Text className="text-[#0cb9f2] font-bold">Sign in</Text>
+      
+      {/* Sign Up Button - positioned toward bottom as in login design */}
+      <View className="mx-auto w-full absolute bottom-[140px]">
+        <TouchableOpacity
+          className="mx-[21px] h-20 bg-[#0cb9f2] rounded-xl shadow-lg items-center justify-center"
+          onPress={handleSignup}
+          disabled={loading}
+          activeOpacity={0.8}
+          style={{ shadowColor: '#0cb9f2', shadowOpacity: 0.2, shadowRadius: 8, elevation: 4 }}
+        >
+          {loading ? (
+            <ActivityIndicator color="#111618" />
+          ) : (
+            <Text className="text-[#111618] text-2xl font-bold">Sign Up</Text>
+          )}
         </TouchableOpacity>
       </View>
-    </View>
+      
+      {/* Sign In text - positioned at bottom as in login design */}
+      <View className="mx-auto w-full absolute bottom-[75px]">
+        <View className="flex-row justify-center">
+          <Text className="text-[#a2afb3] text-xl font-normal">Already have an account? </Text>
+          <TouchableOpacity onPress={() => navigation.navigate('LoginScreen')}>
+            <Text className="text-[#0cb9f2] text-xl font-bold">Sign in</Text>
+          </TouchableOpacity>
+        </View>
+      </View>
+    </SafeAreaView>
   );
 }

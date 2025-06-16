@@ -11,8 +11,9 @@ import { useQuiz } from "../context/QuizContext";
 import Timer from "../components/Timer";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { Ionicons } from "@expo/vector-icons";
+import { SafeAreaView } from "react-native-safe-area-context";
 
-export default function QuizScreen() {
+export default function QuizScreen({ route, navigation }) {
   const {
     currentQuiz,
     isLoading,
@@ -31,6 +32,19 @@ export default function QuizScreen() {
   const [score, setScore] = useState(0);
   const [quizStarted, setQuizStarted] = useState(false);
   const [savedQuizzes, setSavedQuizzes] = useState({});
+
+  // Check for auto-start subject from notification
+  useEffect(() => {
+    if (route?.params?.autoStartSubject) {
+      console.log('Auto-starting quiz for subject:', route.params.autoStartSubject);
+      fetchQuiz(route.params.autoStartSubject).then(() => {
+        setQuizStarted(true);
+        startQuiz();
+      });
+      // Clear the parameter to prevent re-triggering
+      navigation.setParams({ autoStartSubject: undefined });
+    }
+  }, [route?.params?.autoStartSubject]);
 
   useEffect(() => {
     // Reset local selected state when current question changes
@@ -287,7 +301,7 @@ export default function QuizScreen() {
   // Render results screen
   if (showResults) {
     return (
-      <View className="flex-1 bg-[#111618] px-4 py-6">
+      <SafeAreaView className="flex-1 bg-[#111618] px-4 py-6">
         <Text className="text-white text-3xl font-bold mb-2 text-center">
           Quiz Results
         </Text>
@@ -402,7 +416,7 @@ export default function QuizScreen() {
             New Quiz
           </Text>
         </TouchableOpacity>
-      </View>
+      </SafeAreaView>
     );
   }
 
@@ -467,7 +481,7 @@ export default function QuizScreen() {
   const progress = ((currentQuestion + 1) / currentQuiz.questions.length) * 100;
 
   return (
-    <View className="flex-1 bg-[#111618] justify-between">
+    <SafeAreaView className="flex-1 bg-[#111618] justify-between">
       {/* Progress */}
       <View className="flex flex-col gap-3 p-4">
         <View className="flex-row justify-between items-center">
@@ -538,6 +552,6 @@ export default function QuizScreen() {
           </Text>
         </TouchableOpacity>
       </View>
-    </View>
+    </SafeAreaView>
   );
 }

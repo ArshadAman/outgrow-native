@@ -3,7 +3,6 @@ import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { createStackNavigator } from '@react-navigation/stack';
 import HomeScreen from '../screens/HomeScreen';
 import QuizScreen from '../screens/QuizScreen';
-import TipScreen from '../screens/TipScreen';
 import SavedScreen from '../screens/SavedScreen';
 import ProfileScreen from '../screens/ProfileScreen';
 import LoginScreen from '../screens/LoginScreen';
@@ -14,6 +13,7 @@ import SavedQuizzesDetail from '../screens/SavedQuizzesDetail';
 import { Text } from 'react-native';
 import * as Notifications from 'expo-notifications';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { Ionicons, MaterialCommunityIcons, FontAwesome5 } from '@expo/vector-icons';
 
 const Tab = createBottomTabNavigator();
 const Stack = createStackNavigator();
@@ -53,16 +53,47 @@ function MainTabs() {
       screenOptions={{
         headerShown: false,
         tabBarStyle: { backgroundColor: '#1e2324', borderTopColor: '#2c3335', paddingBottom: 8, paddingTop: 4, height: 60 },
-        tabBarActiveTintColor: '#fff',
+        tabBarActiveTintColor: '#0cb9f2',
         tabBarInactiveTintColor: '#a2afb3',
         tabBarLabelStyle: { fontSize: 12, fontWeight: 'bold' },
       }}
     >
-      <Tab.Screen name="Home" component={HomeStack} options={{ tabBarIcon: ({ color }) => <Text style={{ color, fontSize: 22 }}>🏠</Text> }} />
-      <Tab.Screen name="Quiz" component={QuizStack} options={{ tabBarIcon: ({ color }) => <Text style={{ color, fontSize: 22 }}>❓</Text> }} />
-      <Tab.Screen name="Tips" component={TipsStack} options={{ tabBarIcon: ({ color }) => <Text style={{ color, fontSize: 22 }}>💡</Text> }} />
-      <Tab.Screen name="Saved" component={SavedScreen} options={{ tabBarIcon: ({ color }) => <Text style={{ color, fontSize: 22 }}>🔖</Text> }} />
-      <Tab.Screen name="Profile" component={ProfileScreen} options={{ tabBarIcon: ({ color }) => <Text style={{ color, fontSize: 22 }}>👤</Text> }} />
+      <Tab.Screen
+        name="Home"
+        component={HomeStack}
+        options={{
+          tabBarIcon: ({ color, focused }) => (
+            <Ionicons name={focused ? 'home' : 'home-outline'} size={24} color={color} />
+          ),
+        }}
+      />
+      <Tab.Screen
+        name="Quiz"
+        component={QuizStack}
+        options={{
+          tabBarIcon: ({ color, focused }) => (
+            <MaterialCommunityIcons name={focused ? 'lightbulb-on' : 'lightbulb-on-outline'} size={24} color={color} />
+          ),
+        }}
+      />
+      <Tab.Screen
+        name="Saved"
+        component={SavedScreen}
+        options={{
+          tabBarIcon: ({ color, focused }) => (
+            <FontAwesome5 name={focused ? 'bookmark' : 'bookmark'} solid={focused} size={22} color={color} />
+          ),
+        }}
+      />
+      <Tab.Screen
+        name="Profile"
+        component={ProfileScreen}
+        options={{
+          tabBarIcon: ({ color, focused }) => (
+            <Ionicons name={focused ? 'person' : 'person-outline'} size={24} color={color} />
+          ),
+        }}
+      />
     </Tab.Navigator>
   );
 }

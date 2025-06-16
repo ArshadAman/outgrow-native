@@ -2,6 +2,7 @@ import React, { useEffect, useState } from "react";
 import { View, Text, TouchableOpacity, Image, ScrollView, ActivityIndicator } from "react-native";
 import { useRoute, useNavigation } from "@react-navigation/native";
 import { fetchTips } from "../api/tips";
+import { SafeAreaView } from "react-native-safe-area-context";
 
 export default function TechDetailScreen() {
   const route = useRoute();
@@ -57,7 +58,7 @@ export default function TechDetailScreen() {
   }
 
   return (
-    <View className="flex-1 bg-[#111618]">
+    <SafeAreaView className="flex-1 bg-[#111618]">
       <View className="flex-row items-center bg-[#111618] p-4 pb-2 justify-between">
         <TouchableOpacity onPress={() => navigation.goBack()} className="pr-4">
           <Text className="text-[#0cb9f2] text-2xl">←</Text>
@@ -107,6 +108,6 @@ export default function TechDetailScreen() {
           )}
         </ScrollView>
       )}
-    </View>
+    </SafeAreaView>
   );
 }
