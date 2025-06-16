@@ -10,6 +10,7 @@ import LoginScreen from '../screens/LoginScreen';
 import SignupScreen from '../screens/SignupScreen';
 import TechDetailScreen from '../screens/TechDetailScreen';
 import TipDetailScreen from '../screens/TipDetailScreen';
+import SavedQuizzesDetail from '../screens/SavedQuizzesDetail';
 import { Text } from 'react-native';
 import * as Notifications from 'expo-notifications';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -87,6 +88,7 @@ export default function AppNavigator() {
       {/* These screens can be accessed from any tab */}
       <RootStack.Screen name="TechDetailScreen" component={TechDetailScreen} />
       <RootStack.Screen name="TipDetailScreen" component={TipDetailScreen} />
+      <RootStack.Screen name="SavedQuizzesDetail" component={SavedQuizzesDetail} />
     </RootStack.Navigator>
   );
 }
