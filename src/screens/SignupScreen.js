@@ -1,15 +1,20 @@
 import React, { useState } from 'react';
-import { 
-  View, 
-  Text, 
-  TextInput, 
-  TouchableOpacity, 
-  ActivityIndicator, 
-  Alert, 
-  Image, 
+import {
+  View,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  ActivityIndicator,
+  Alert,
+  Image,
   StatusBar,
+  Dimensions,
+  ScrollView,
+  StyleSheet,
+  KeyboardAvoidingView,
+  Platform,
   SafeAreaView,
-  Dimensions 
+  ScrollView as ScrollViewComponent,
 } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { signupSchema } from '../utils/validation';
@@ -35,23 +40,18 @@ export default function SignupScreen({ navigation }) {
     try {
       await signupSchema.validate(values, { abortEarly: false });
       setLoading(true);
-
       try {
-        // Prepare user data
         const userData = {
           username: values.username,
           password: values.password,
-          email: `${values.username}@example.com`, // Dummy email for demo
+          email: `${values.username}@example.com`,
         };
-        
-        // Register user
         const result = await register(userData);
         Alert.alert('Signup Success', 'Account created!');
         navigation.navigate('LoginScreen');
       } catch (apiError) {
         Alert.alert('Signup Failed', apiError.message || 'Unable to create account');
       }
-      
       setLoading(false);
     } catch (err) {
       setLoading(false);
@@ -66,131 +66,242 @@ export default function SignupScreen({ navigation }) {
   };
 
   return (
-    <SafeAreaView className="flex-1 bg-[#111618]">
-      <StatusBar barStyle="light-content" backgroundColor="#111618" />
-      <View className="h-16"></View>
-      
-      {/* Top image - large illustration */}
-      <Image
-        source={require("../../assets/icon.png")}
-        className="w-64 h-64 mx-auto rounded-full"
-        resizeMode="contain"
-      />
-      
-      {/* Sign up heading - matching login design */}
-      <Text className="mx-[21px] mt-5 text-3xl text-center font-bold text-white leading-[48px] tracking-wide">
-        Create Your Account
-      </Text>
-      
-      <TouchableOpacity
-        className="mx-[21px] mt-[20px] h-16 bg-[#181F2A] rounded-xl border border-[#3b4e54] flex-row items-center justify-center"
-        activeOpacity={0.8}
+    <KeyboardAvoidingView
+      style={{ flex: 1 }}
+      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+      keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 24}
+    >
+      <ScrollView
+        style={styles.container}
+        contentContainerStyle={{ flexGrow: 1, paddingBottom: 64 }}
+        keyboardShouldPersistTaps="handled"
       >
-        {/* Google icon */}
-        <View className="w-8 h-8 mr-[10px]">
+        <StatusBar barStyle="light-content" backgroundColor="#10131a" />
+        <View style={{ height: 32 }} />
+        {/* Logo */}
+        <Image
+          source={require("../../assets/icon.png")}
+          style={styles.logo}
+          resizeMode="contain"
+        />
+        {/* Heading */}
+        <Text style={styles.heading}>Create Your Account</Text>
+        {/* Google Sign Up Button */}
+        <TouchableOpacity style={styles.socialButton} activeOpacity={0.85}>
           <Image
-            source={{ uri: "https://img.icons8.com/plasticine/100/google-logo.png" }}
-            className="w-8 h-8"
+            source={{ uri: 'https://img.icons8.com/plasticine/100/google-logo.png' }}
+            style={styles.socialIcon}
             resizeMode="contain"
           />
-        </View>
-        <Text className="text-2xl font-medium text-white">
-          Sign up with Google
-        </Text>
-      </TouchableOpacity>
-      
-      {/* Divider with text */}
-      <View className="flex-row items-center mx-[21px] mt-[20px]">
-        <View className="flex-1 h-[1px] bg-[#3b4e54] opacity-70" />
-        <Text className="mx-2.5 bg-[#111618] text-[#a2afb3] text-base">
-          or sign up with email
-        </Text>
-        <View className="flex-1 h-[1px] bg-[#3b4e54] opacity-70" />
-      </View>
-      
-      {/* Form fields - positioned exactly as in login design */}
-      <View className="mx-[21px] mt-[10px]">
-        {/* Username field label */}
-        <Text className="text-xl font-normal text-white mb-[10px]">
-          Username
-        </Text>
-        
-        {/* Username input */}
-        <TextInput
-          className="w-[100%] h-16 bg-[#232D3F] rounded-md mb-[10px] px-4 text-white border border-[#3b4e54]"
-          placeholderTextColor="#a2afb3"
-          placeholder="Enter your username"
-          value={values.username}
-          onChangeText={v => handleChange('username', v)}
-          autoCapitalize="none"
-        />
-        {errors.username && (
-          <Text className="text-[#ff3b30] mb-1 text-xs">{errors.username}</Text>
-        )}
-        
-        {/* Password field */}
-        <Text className="text-xl font-normal text-white mb-[10px]">
-          Password
-        </Text>
-        
-        {/* Password input */}
-        <TextInput
-          className="w-[100%] h-16 bg-[#232D3F] rounded-md mb-[10px] px-4 text-white border border-[#3b4e54]"
-          placeholderTextColor="#a2afb3"
-          placeholder="Enter your password"
-          value={values.password}
-          onChangeText={v => handleChange('password', v)}
-          secureTextEntry
-        />
-        {errors.password && (
-          <Text className="text-[#ff3b30] mb-1 text-xs">{errors.password}</Text>
-        )}
-        
-        {/* Confirm Password field */}
-        <Text className="text-xl font-normal text-white mb-[10px]">
-          Confirm Password
-        </Text>
-        
-        {/* Confirm Password input */}
-        <TextInput
-          className="w-[100%] h-16 bg-[#232D3F] rounded-md mb-[10px] px-4 text-white border border-[#3b4e54]"
-          placeholderTextColor="#a2afb3"
-          placeholder="Confirm your password"
-          value={values.confirmPassword}
-          onChangeText={v => handleChange('confirmPassword', v)}
-          secureTextEntry
-        />
-        {errors.confirmPassword && (
-          <Text className="text-[#ff3b30] mb-1 text-xs">{errors.confirmPassword}</Text>
-        )}
-      </View>
-      
-      {/* Sign Up Button - positioned toward bottom as in login design */}
-      <View className="mx-auto w-full absolute bottom-[140px]">
-        <TouchableOpacity
-          className="mx-[21px] h-20 bg-[#0cb9f2] rounded-xl shadow-lg items-center justify-center"
-          onPress={handleSignup}
-          disabled={loading}
-          activeOpacity={0.8}
-          style={{ shadowColor: '#0cb9f2', shadowOpacity: 0.2, shadowRadius: 8, elevation: 4 }}
-        >
-          {loading ? (
-            <ActivityIndicator color="#111618" />
-          ) : (
-            <Text className="text-[#111618] text-2xl font-bold">Sign Up</Text>
-          )}
+          <Text style={styles.socialButtonText}>Sign up with Google</Text>
         </TouchableOpacity>
-      </View>
-      
-      {/* Sign In text - positioned at bottom as in login design */}
-      <View className="mx-auto w-full absolute bottom-[75px]">
-        <View className="flex-row justify-center">
-          <Text className="text-[#a2afb3] text-xl font-normal">Already have an account? </Text>
-          <TouchableOpacity onPress={() => navigation.navigate('LoginScreen')}>
-            <Text className="text-[#0cb9f2] text-xl font-bold">Sign in</Text>
+        {/* Divider */}
+        <View style={styles.dividerRow}>
+          <View style={styles.dividerLine} />
+          <Text style={styles.dividerText}>or sign up with email</Text>
+          <View style={styles.dividerLine} />
+        </View>
+        {/* Form */}
+        <View style={styles.form}>
+          <Text style={styles.label}>Username</Text>
+          <TextInput
+            style={styles.input}
+            placeholderTextColor="#7e8a9a"
+            placeholder="Enter your username"
+            value={values.username}
+            onChangeText={v => handleChange('username', v)}
+            autoCapitalize="none"
+          />
+          <Text style={styles.errorTextFixed}>{errors.username || " "}</Text>
+
+          <Text style={styles.label}>Password</Text>
+          <TextInput
+            style={styles.input}
+            placeholderTextColor="#7e8a9a"
+            placeholder="Enter your password"
+            value={values.password}
+            onChangeText={v => handleChange('password', v)}
+            secureTextEntry
+          />
+          <Text style={styles.errorTextFixed}>{errors.password || " "}</Text>
+
+          <Text style={styles.label}>Confirm Password</Text>
+          <TextInput
+            style={styles.input}
+            placeholderTextColor="#7e8a9a"
+            placeholder="Confirm your password"
+            value={values.confirmPassword}
+            onChangeText={v => handleChange('confirmPassword', v)}
+            secureTextEntry
+          />
+          <Text style={styles.errorTextFixed}>{errors.confirmPassword || " "}</Text>
+        </View>
+        {/* Sign Up Button */}
+        <View style={styles.signInButtonWrapper}>
+          <TouchableOpacity
+            style={styles.signInButton}
+            onPress={handleSignup}
+            disabled={loading}
+            activeOpacity={0.85}
+          >
+            {loading ? (
+              <ActivityIndicator color="#fff" />
+            ) : (
+              <Text style={styles.signInButtonText}>Sign Up</Text>
+            )}
           </TouchableOpacity>
         </View>
-      </View>
-    </SafeAreaView>
+        {/* Sign In */}
+        <View style={styles.signUpWrapper}>
+          <View style={{ flexDirection: "row", justifyContent: "center" }}>
+            <Text style={styles.signUpText}>Already have an account? </Text>
+            <TouchableOpacity onPress={() => navigation.navigate('LoginScreen')}>
+              <Text style={styles.signUpLink}>Sign in</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </ScrollView>
+    </KeyboardAvoidingView>
   );
 }
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: "#10131a",
+  },
+  logo: {
+    width: 90,
+    height: 90,
+    borderRadius: 24,
+    alignSelf: "center",
+    marginBottom: 12,
+    backgroundColor: "#181c24",
+    borderWidth: 2,
+    borderColor: "#232d3f",
+    shadowColor: "#0cb9f2",
+    shadowOpacity: 0.15,
+    shadowRadius: 8,
+    elevation: 6,
+  },
+  heading: {
+    marginHorizontal: 24,
+    marginTop: 8,
+    fontSize: 24,
+    textAlign: "center",
+    fontWeight: "700",
+    color: "#f5f7fa",
+    letterSpacing: 0.5,
+    marginBottom: 8,
+  },
+  socialButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    marginHorizontal: 24,
+    marginTop: 18,
+    height: 35,
+    backgroundColor: "#181c24",
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: "#232d3f",
+    shadowColor: "#0cb9f2",
+    shadowOpacity: 0.08,
+    shadowRadius: 6,
+    elevation: 2,
+  },
+  socialIcon: {
+    width: 32,
+    height: 32,
+    marginRight: 12,
+  },
+  socialButtonText: {
+    fontSize: 16,
+    fontWeight: "600",
+    color: "#f5f7fa",
+  },
+  dividerRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginHorizontal: 24,
+    marginTop: 32,
+  },
+  dividerLine: {
+    flex: 1,
+    height: 1,
+    backgroundColor: "#232d3f",
+    opacity: 0.5,
+  },
+  dividerText: {
+    marginHorizontal: 10,
+    backgroundColor: "#10131a",
+    color: "#7e8a9a",
+    fontSize: 15,
+    fontWeight: "500",
+  },
+  form: {
+    marginHorizontal: 24,
+    marginTop: 15,
+  },
+  label: {
+    fontSize: 14,
+    fontWeight: "500",
+    color: "#f5f7fa",
+    marginBottom: 7,
+  },
+  input: {
+    width: "100%",
+    height: 35,
+    backgroundColor: "#181c24",
+    borderRadius: 10,
+    paddingHorizontal: 16,
+    color: "#f5f7fa",
+    borderWidth: 1,
+    borderColor: "#232d3f",
+    marginBottom: 8,
+    fontSize: 14,
+  },
+  errorTextFixed: {
+    color: "#ff4d4f",
+    minHeight: 18,
+    marginBottom: 4,
+    fontSize: 13,
+  },
+  signInButtonWrapper: {
+    marginHorizontal: 24,
+    marginTop: 0,
+  },
+  signInButton: {
+    height: 35,
+    backgroundColor: "#0cb9f2",
+    borderRadius: 14,
+    alignItems: "center",
+    justifyContent: "center",
+    shadowColor: "#0cb9f2",
+    shadowOpacity: 0.18,
+    shadowRadius: 8,
+    elevation: 4,
+  },
+  signInButtonText: {
+    color: "#10131a",
+    fontSize: 18,
+    fontWeight: "700",
+    letterSpacing: 0.5,
+  },
+  signUpWrapper: {
+    marginTop: 10,
+    marginBottom: 32,
+    alignItems: "center",
+  },
+  signUpText: {
+    color: "#7e8a9a",
+    fontSize: 16,
+    fontWeight: "500",
+  },
+  signUpLink: {
+    color: "#0cb9f2",
+    fontSize: 16,
+    fontWeight: "700",
+    marginLeft: 2,
+  },
+});
