@@ -228,7 +228,7 @@ export default function NotificationSettingsScreen({ navigation }) {
         )}
 
         {/* Info Section */}
-        <View className="bg-[#232D3F] rounded-2xl p-5 mt-6">
+        <View className="bg-[#232D3F] rounded-2xl p-5 mt-6 mb-10">
           <View className="flex-row items-center mb-3">
             <Ionicons name="information-circle" size={20} color="#0cb9f2" />
             <Text className="text-white text-base font-semibold ml-2">How it works</Text>
