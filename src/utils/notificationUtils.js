@@ -182,3 +182,135 @@ export function hasTimeConflicts(times) {
   
   return false;
 }
+
+/**
+ * Get the next occurrence of a specific time, ensuring it's always in the future
+ * This is an alias for getNextScheduleTime but with clearer semantics
+ * @param {number} hour - Hour in 24-hour format (0-23)
+ * @param {number} minute - Minute (0-59)
+ * @returns {Date} Next occurrence of the specified time (always in future)
+ */
+export function getNextOccurrence(hour, minute) {
+  return getNextScheduleTime(hour, minute);
+}
+
+/**
+ * Cancel all scheduled notifications
+ * @returns {Promise<boolean>} True if successful
+ */
+export async function cancelAllScheduledNotifications() {
+  try {
+    await Notifications.cancelAllScheduledNotificationsAsync();
+    console.log('✅ All scheduled notifications cancelled');
+    return true;
+  } catch (error) {
+    console.error('❌ Error cancelling notifications:', error);
+    return false;
+  }
+}
+
+/**
+ * Schedule the next daily notification for a specific time slot
+ * Never uses repeats:true, always schedules for next valid future occurrence
+ * @param {Object} timeSlot - Time slot object with hour, minute, enabled, id
+ * @param {Object} notificationContent - Notification content object
+ * @returns {Promise<string|null>} Notification ID if successful, null if failed
+ */
+export async function scheduleNextDailyNotification(timeSlot, notificationContent) {
+  try {
+    if (!timeSlot.enabled || !isValidNotificationTime(timeSlot)) {
+      console.log(`Skipping disabled or invalid time slot: ${timeSlot.id}`);
+      return null;
+    }
+
+    // Get the next valid future occurrence
+    const nextOccurrence = getNextOccurrence(timeSlot.hour, timeSlot.minute);
+    const secondsUntil = getSecondsUntil(nextOccurrence);
+    
+    // Ensure we're not scheduling for immediate execution (unless it's really 'now')
+    if (secondsUntil < 60) {
+      console.log(`Time slot ${timeSlot.id} is too close (${secondsUntil}s), scheduling for tomorrow`);
+      nextOccurrence.setDate(nextOccurrence.getDate() + 1);
+      const newSecondsUntil = getSecondsUntil(nextOccurrence);
+      
+      const notificationId = await Notifications.scheduleNotificationAsync({
+        content: {
+          ...notificationContent,
+          data: {
+            ...notificationContent.data,
+            timeSlot: timeSlot.id,
+            scheduledFor: nextOccurrence.toISOString()
+          }
+        },
+        trigger: {
+          seconds: newSecondsUntil,
+          repeats: false // Never use repeats for daily notifications
+        },
+      });
+      
+      const timeDisplay = formatTimeDisplay(timeSlot.hour, timeSlot.minute);
+      const scheduleDate = nextOccurrence.toLocaleDateString();
+      console.log(`✅ Scheduled notification for ${timeSlot.id} at ${timeDisplay} on ${scheduleDate} (in ${newSecondsUntil} seconds)`);
+      
+      return notificationId;
+    }
+
+    // Schedule for the calculated time
+    const notificationId = await Notifications.scheduleNotificationAsync({
+      content: {
+        ...notificationContent,
+        data: {
+          ...notificationContent.data,
+          timeSlot: timeSlot.id,
+          scheduledFor: nextOccurrence.toISOString()
+        }
+      },
+      trigger: {
+        seconds: secondsUntil,
+        repeats: false // Never use repeats for daily notifications
+      },
+    });
+    
+    const timeDisplay = formatTimeDisplay(timeSlot.hour, timeSlot.minute);
+    const scheduleDate = nextOccurrence.toLocaleDateString();
+    console.log(`✅ Scheduled notification for ${timeSlot.id} at ${timeDisplay} on ${scheduleDate} (in ${secondsUntil} seconds)`);
+    
+    return notificationId;
+    
+  } catch (error) {
+    console.error(`❌ Error scheduling notification for ${timeSlot.id}:`, error);
+    return null;
+  }
+}
+
+/**
+ * Schedule all enabled daily notifications, cancelling any existing ones first
+ * @param {Array} notificationTimes - Array of notification time objects
+ * @param {Function} getNotificationContent - Function that returns notification content for a time slot
+ * @returns {Promise<number>} Number of notifications successfully scheduled
+ */
+export async function scheduleAllDailyNotifications(notificationTimes, getNotificationContent) {
+  try {
+    // Always cancel all existing notifications first
+    await cancelAllScheduledNotifications();
+    
+    const enabledTimes = notificationTimes.filter(time => time.enabled);
+    let scheduledCount = 0;
+    
+    for (const timeSlot of enabledTimes) {
+      const content = getNotificationContent(timeSlot);
+      const notificationId = await scheduleNextDailyNotification(timeSlot, content);
+      
+      if (notificationId) {
+        scheduledCount++;
+      }
+    }
+    
+    console.log(`📅 Successfully scheduled ${scheduledCount} daily notifications`);
+    return scheduledCount;
+    
+  } catch (error) {
+    console.error('❌ Error scheduling daily notifications:', error);
+    return 0;
+  }
+}

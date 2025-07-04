@@ -8,7 +8,11 @@ import {
   getNextScheduleTime,
   getSecondsUntil,
   formatTimeDisplay,
-  getScheduledNotifications
+  getScheduledNotifications,
+  getNextOccurrence,
+  scheduleNextDailyNotification,
+  cancelAllScheduledNotifications,
+  scheduleAllDailyNotifications
 } from '../utils/notificationUtils';
 
 // Constants
@@ -36,6 +40,7 @@ export const QuizContext = createContext({
   submitAnswer: () => {},
   finishQuiz: () => {},
   toggleNotifications: () => {},
+  rescheduleNotifications: () => {},
   sendTestNotification: () => {},
 });
 
@@ -48,7 +53,7 @@ Notifications.setNotificationHandler({
   }),
 });
 
-// Function to schedule random quiz notifications with timezone-aware absolute scheduling
+// Function to schedule robust daily quiz notifications
 async function scheduleRandomQuizNotifications() {
   // Request notification permissions
   const { status } = await Notifications.requestPermissionsAsync();
@@ -68,9 +73,6 @@ async function scheduleRandomQuizNotifications() {
     });
   }
 
-  // Cancel any existing notifications
-  await Notifications.cancelAllScheduledNotificationsAsync();
-
   // Load user's custom notification times
   const userNotificationTimes = await loadNotificationTimes();
   const enabledTimes = userNotificationTimes.filter(time => time.enabled);
@@ -88,74 +90,91 @@ async function scheduleRandomQuizNotifications() {
     'Quick quiz break! 📚'
   ];
 
-  let scheduledCount = 0;
-
-  for (const time of enabledTimes) {
-    // Get random subject and message
+  // Function to generate notification content for a time slot
+  const getNotificationContent = (timeSlot) => {
     const randomSubject = SUBJECTS[Math.floor(Math.random() * SUBJECTS.length)];
     const randomMessage = motivationalMessages[Math.floor(Math.random() * motivationalMessages.length)];
-
-    try {
-      // Calculate the next occurrence of this time using timezone-aware scheduling
-      const scheduleTime = getNextScheduleTime(time.hour, time.minute);
-      const secondsUntil = getSecondsUntil(scheduleTime);
-
-      // Schedule using absolute seconds (more reliable than hour/minute)
-      const notificationId = await Notifications.scheduleNotificationAsync({
-        content: {
-          title: `${randomSubject} Quiz! 🎓`,
-          body: `${randomMessage} Topic: ${randomSubject}`,
-          data: { 
-            screen: 'QuizScreen',
-            subject: randomSubject,
-            type: 'daily_quiz',
-            timeSlot: time.id
-          },
-          sound: 'default',
-        },
-        trigger: {
-          seconds: secondsUntil,
-          repeats: false, // We'll reschedule after each notification
-        },
-      });
-      
-      const timeDisplay = formatTimeDisplay(time.hour, time.minute);
-      const scheduleDate = scheduleTime.toLocaleDateString();
-      console.log(`✅ Scheduled notification for ${randomSubject} at ${timeDisplay} on ${scheduleDate} (in ${secondsUntil} seconds)`);
-      scheduledCount++;
-    } catch (error) {
-      console.error('Error scheduling notification:', error);
-    }
-  }
-
-  // Schedule a welcome notification in 10 seconds if this is the first time enabling
-  try {
-    const testSubject = SUBJECTS[Math.floor(Math.random() * SUBJECTS.length)];
-    await Notifications.scheduleNotificationAsync({
-      content: {
-        title: 'Welcome to OutGrow! 🎉',
-        body: `Notifications are now active! Here's a ${testSubject} quiz to get started.`,
-        data: { 
-          screen: 'QuizScreen',
-          subject: testSubject,
-          type: 'welcome'
-        },
+    
+    return {
+      title: `${randomSubject} Quiz! 🎓`,
+      body: `${randomMessage} Topic: ${randomSubject}`,
+      data: { 
+        screen: 'QuizScreen',
+        subject: randomSubject,
+        type: 'daily_quiz',
+        timeSlot: timeSlot.id
       },
-      trigger: { seconds: 10 }
-    });
-    console.log('✅ Welcome notification scheduled');
-  } catch (error) {
-    console.error('Error scheduling welcome notification:', error);
-  }
+      sound: 'default',
+    };
+  };
+
+  // Use the robust scheduling utility
+  const scheduledCount = await scheduleAllDailyNotifications(userNotificationTimes, getNotificationContent);
 
   // Log all scheduled notifications for debugging
   await getScheduledNotifications();
 
-  console.log(`📅 Successfully scheduled ${scheduledCount} notifications`);
-  return true;
+  console.log(`📅 Successfully scheduled ${scheduledCount} robust daily notifications`);
+  return scheduledCount > 0;
 }
 
-// Function to send immediate quiz notification
+// Function to reschedule a notification after it fires
+async function rescheduleNotificationAfterFiring(notificationData) {
+  try {
+    if (!notificationData?.timeSlot) {
+      console.log('No timeSlot in notification data, skipping reschedule');
+      return false;
+    }
+
+    // Load current notification times
+    const userNotificationTimes = await loadNotificationTimes();
+    const timeSlot = userNotificationTimes.find(time => time.id === notificationData.timeSlot);
+    
+    if (!timeSlot || !timeSlot.enabled) {
+      console.log(`TimeSlot ${notificationData.timeSlot} not found or disabled, skipping reschedule`);
+      return false;
+    }
+
+    const motivationalMessages = [
+      'Ready to challenge your brain? 🧠',
+      'Time for a quick knowledge boost! ⚡',
+      'Let\'s test what you know! 🎯',
+      'Brain training time! 💪',
+      'Quick quiz break! 📚'
+    ];
+
+    // Generate content for the rescheduled notification
+    const randomSubject = SUBJECTS[Math.floor(Math.random() * SUBJECTS.length)];
+    const randomMessage = motivationalMessages[Math.floor(Math.random() * motivationalMessages.length)];
+    
+    const notificationContent = {
+      title: `${randomSubject} Quiz! 🎓`,
+      body: `${randomMessage} Topic: ${randomSubject}`,
+      data: { 
+        screen: 'QuizScreen',
+        subject: randomSubject,
+        type: 'daily_quiz',
+        timeSlot: timeSlot.id
+      },
+      sound: 'default',
+    };
+
+    // Schedule the next occurrence of this time slot
+    const notificationId = await scheduleNextDailyNotification(timeSlot, notificationContent);
+    
+    if (notificationId) {
+      console.log(`🔄 Rescheduled notification for timeSlot ${timeSlot.id} successfully`);
+      return true;
+    } else {
+      console.log(`❌ Failed to reschedule notification for timeSlot ${timeSlot.id}`);
+      return false;
+    }
+
+  } catch (error) {
+    console.error('Error rescheduling notification after firing:', error);
+    return false;
+  }
+}
 async function sendTestNotification() {
   try {
     const randomSubject = SUBJECTS[Math.floor(Math.random() * SUBJECTS.length)];
@@ -203,6 +222,26 @@ export const QuizProvider = ({ children }) => {
       if (notificationData?.subject) {
         // Fetch quiz for the specific subject
         fetchQuiz(notificationData.subject);
+        
+        // If this was a daily quiz notification, reschedule it for tomorrow
+        if (notificationData.type === 'daily_quiz') {
+          console.log('Rescheduling daily quiz notification after user interaction');
+          rescheduleNotificationAfterFiring(notificationData);
+        }
+      }
+    });
+    
+    // Also listen for notifications received when app is in foreground
+    const foregroundSubscription = Notifications.addNotificationReceivedListener(notification => {
+      console.log('Notification received in foreground:', notification);
+      
+      // Extract notification data
+      const notificationData = notification.request.content.data;
+      
+      // If this was a daily quiz notification, reschedule it for tomorrow
+      if (notificationData?.type === 'daily_quiz') {
+        console.log('Rescheduling daily quiz notification after foreground delivery');
+        rescheduleNotificationAfterFiring(notificationData);
       }
     });
     
@@ -210,7 +249,10 @@ export const QuizProvider = ({ children }) => {
     loadQuizHistory();
     loadNotificationSettings();
 
-    return () => subscription.remove();
+    return () => {
+      subscription.remove();
+      foregroundSubscription.remove();
+    };
   }, []);
 
   // Load notification settings
@@ -247,10 +289,10 @@ export const QuizProvider = ({ children }) => {
         }
         return false;
       } else {
-        await Notifications.cancelAllScheduledNotificationsAsync();
+        await cancelAllScheduledNotifications();
         setNotificationsEnabled(false);
         await AsyncStorage.setItem('notifications_enabled', 'false');
-        console.log('All notifications cancelled');
+        console.log('All notifications cancelled using robust cancellation');
         return true;
       }
     } catch (error) {
@@ -373,6 +415,23 @@ export const QuizProvider = ({ children }) => {
     }
   };
 
+  // Manual reschedule function for UI components
+  const rescheduleNotifications = async () => {
+    try {
+      if (!notificationsEnabled) {
+        console.log('Notifications are disabled, skipping reschedule');
+        return false;
+      }
+      
+      const success = await scheduleRandomQuizNotifications();
+      console.log('Manual reschedule result:', success);
+      return success;
+    } catch (error) {
+      console.error('Error manually rescheduling notifications:', error);
+      return false;
+    }
+  };
+
   return (
     <QuizContext.Provider
       value={{
@@ -389,6 +448,7 @@ export const QuizProvider = ({ children }) => {
         submitAnswer,
         finishQuiz,
         toggleNotifications,
+        rescheduleNotifications,
         sendTestNotification,
       }}
     >

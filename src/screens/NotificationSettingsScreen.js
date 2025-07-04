@@ -22,7 +22,7 @@ import {
 } from '../utils/notificationUtils';
 
 export default function NotificationSettingsScreen({ navigation }) {
-  const { notificationsEnabled, toggleNotifications } = useQuiz();
+  const { notificationsEnabled, toggleNotifications, rescheduleNotifications } = useQuiz();
   const [notificationTimes, setNotificationTimes] = useState(DEFAULT_NOTIFICATION_TIMES);
   const [showTimePicker, setShowTimePicker] = useState(null);
   const [tempTime, setTempTime] = useState(new Date());
@@ -101,10 +101,13 @@ export default function NotificationSettingsScreen({ navigation }) {
 
       await saveNotificationTimes(notificationTimes);
       
-      // If notifications are enabled, reschedule them with new times
+      // If notifications are enabled, reschedule them with new times using robust method
       if (notificationsEnabled) {
-        await toggleNotifications(false); // Cancel existing
-        await toggleNotifications(true);  // Reschedule with new times
+        const success = await rescheduleNotifications();
+        if (!success) {
+          Alert.alert('Warning', 'Settings saved but failed to reschedule notifications. Please try toggling notifications off and on again.');
+          return;
+        }
       }
       
       setHasChanges(false);
