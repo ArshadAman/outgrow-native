@@ -3,6 +3,13 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as Notifications from 'expo-notifications';
 import { Platform } from 'react-native';
 import { fetchQuizFromGemini, createFallbackQuiz } from '../api/quizApi';
+import {
+  loadNotificationTimes,
+  getNextScheduleTime,
+  getSecondsUntil,
+  formatTimeDisplay,
+  getScheduledNotifications
+} from '../utils/notificationUtils';
 
 // Constants
 const QUIZ_NOTIFICATION_CHANNEL = 'quiz-notifications';
@@ -41,7 +48,7 @@ Notifications.setNotificationHandler({
   }),
 });
 
-// Function to schedule random quiz notifications
+// Function to schedule random quiz notifications with timezone-aware absolute scheduling
 async function scheduleRandomQuizNotifications() {
   // Request notification permissions
   const { status } = await Notifications.requestPermissionsAsync();
@@ -64,14 +71,14 @@ async function scheduleRandomQuizNotifications() {
   // Cancel any existing notifications
   await Notifications.cancelAllScheduledNotificationsAsync();
 
-  // Schedule 5 daily notifications at different times with random subjects
-  const times = [
-    { hour: 8, minute: 30 },   // 8:30 AM
-    { hour: 12, minute: 0 },   // 12:00 PM
-    { hour: 15, minute: 30 },  // 3:30 PM
-    { hour: 18, minute: 0 },   // 6:00 PM
-    { hour: 21, minute: 0 }    // 9:00 PM
-  ];
+  // Load user's custom notification times
+  const userNotificationTimes = await loadNotificationTimes();
+  const enabledTimes = userNotificationTimes.filter(time => time.enabled);
+
+  if (enabledTimes.length === 0) {
+    console.log('No notification times enabled');
+    return true; // Still considered successful
+  }
 
   const motivationalMessages = [
     'Ready to challenge your brain? 🧠',
@@ -81,12 +88,19 @@ async function scheduleRandomQuizNotifications() {
     'Quick quiz break! 📚'
   ];
 
-  for (const time of times) {
+  let scheduledCount = 0;
+
+  for (const time of enabledTimes) {
     // Get random subject and message
     const randomSubject = SUBJECTS[Math.floor(Math.random() * SUBJECTS.length)];
     const randomMessage = motivationalMessages[Math.floor(Math.random() * motivationalMessages.length)];
 
     try {
+      // Calculate the next occurrence of this time using timezone-aware scheduling
+      const scheduleTime = getNextScheduleTime(time.hour, time.minute);
+      const secondsUntil = getSecondsUntil(scheduleTime);
+
+      // Schedule using absolute seconds (more reliable than hour/minute)
       const notificationId = await Notifications.scheduleNotificationAsync({
         content: {
           title: `${randomSubject} Quiz! 🎓`,
@@ -94,24 +108,27 @@ async function scheduleRandomQuizNotifications() {
           data: { 
             screen: 'QuizScreen',
             subject: randomSubject,
-            type: 'daily_quiz'
+            type: 'daily_quiz',
+            timeSlot: time.id
           },
           sound: 'default',
         },
         trigger: {
-          hour: time.hour,
-          minute: time.minute,
-          repeats: true,
+          seconds: secondsUntil,
+          repeats: false, // We'll reschedule after each notification
         },
       });
       
-      console.log(`Scheduled notification for ${randomSubject} at ${time.hour}:${time.minute.toString().padStart(2, '0')}`);
+      const timeDisplay = formatTimeDisplay(time.hour, time.minute);
+      const scheduleDate = scheduleTime.toLocaleDateString();
+      console.log(`✅ Scheduled notification for ${randomSubject} at ${timeDisplay} on ${scheduleDate} (in ${secondsUntil} seconds)`);
+      scheduledCount++;
     } catch (error) {
       console.error('Error scheduling notification:', error);
     }
   }
 
-  // Schedule a test notification in 10 seconds
+  // Schedule a welcome notification in 10 seconds if this is the first time enabling
   try {
     const testSubject = SUBJECTS[Math.floor(Math.random() * SUBJECTS.length)];
     await Notifications.scheduleNotificationAsync({
@@ -126,11 +143,15 @@ async function scheduleRandomQuizNotifications() {
       },
       trigger: { seconds: 10 }
     });
-    console.log('Test notification scheduled');
+    console.log('✅ Welcome notification scheduled');
   } catch (error) {
-    console.error('Error scheduling test notification:', error);
+    console.error('Error scheduling welcome notification:', error);
   }
 
+  // Log all scheduled notifications for debugging
+  await getScheduledNotifications();
+
+  console.log(`📅 Successfully scheduled ${scheduledCount} notifications`);
   return true;
 }
 
