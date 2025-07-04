@@ -1,5 +1,6 @@
-import React from "react";
-import { View, Text, ScrollView, TouchableOpacity, Image } from "react-native";
+import React, { useState, useEffect } from "react";
+import { View, Text, ScrollView, TouchableOpacity, Image, Alert } from "react-native";
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { FULL_TIP_CONTENT, RELATED_TECH } from "../config/tipData";
 import { SafeAreaView } from "react-native-safe-area-context";
 
@@ -53,6 +54,10 @@ export default function TipDetailScreen({ route, navigation }) {
   // Get tip info from route params
   const { tipTitle, customTip, customTech, fromTechDetail } = route.params || {};
   
+  // State for managing saved tips
+  const [savedTips, setSavedTips] = useState({});
+  const [isLoading, setIsLoading] = useState(true);
+  
   let tip, tech;
   
   // If we received tip and tech directly (from TechDetailScreen)
@@ -67,6 +72,56 @@ export default function TipDetailScreen({ route, navigation }) {
   
   const today = new Date();
   const dateStr = today.toLocaleDateString(undefined, { year: 'numeric', month: 'long', day: 'numeric' });
+  
+  // Generate a unique key for this tip
+  const tipKey = `${tech?.name || 'General'}_${tip?.title || 'Untitled'}`;
+  const isSaved = savedTips[tipKey] !== undefined;
+
+  // Load saved tips on component mount
+  useEffect(() => {
+    loadSavedTips();
+  }, []);
+
+  const loadSavedTips = async () => {
+    try {
+      const saved = await AsyncStorage.getItem('saved_tips');
+      if (saved) {
+        setSavedTips(JSON.parse(saved));
+      }
+    } catch (error) {
+      console.error('Error loading saved tips:', error);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const toggleSaveTip = async () => {
+    try {
+      const newSavedTips = { ...savedTips };
+
+      if (newSavedTips[tipKey]) {
+        // Remove from saved
+        delete newSavedTips[tipKey];
+        Alert.alert('Tip Removed', 'This tip has been removed from your saved collection.');
+      } else {
+        // Add to saved
+        newSavedTips[tipKey] = {
+          title: tip.title,
+          content: tip.desc,
+          techName: tech.name,
+          category: tech.name, // Use tech name as the category
+          timestamp: new Date().toISOString(),
+        };
+        Alert.alert('Tip Saved!', 'This tip has been added to your saved collection.');
+      }
+
+      await AsyncStorage.setItem('saved_tips', JSON.stringify(newSavedTips));
+      setSavedTips(newSavedTips);
+    } catch (error) {
+      console.error('Error saving tip:', error);
+      Alert.alert('Error', 'Failed to save tip. Please try again.');
+    }
+  };
   
   // If we don't have tip data, show a fallback UI
   if (!tip || !tech) {
@@ -100,6 +155,11 @@ export default function TipDetailScreen({ route, navigation }) {
           <Text className="text-[#0cb9f2] text-2xl">←</Text>
         </TouchableOpacity>
         <Text className="text-white text-lg font-bold flex-1 text-center">Tip Blog</Text>
+        {tip && tech && (
+          <TouchableOpacity onPress={toggleSaveTip} className="pl-4">
+            <Text className="text-2xl">{isSaved ? '❤️' : '🤍'}</Text>
+          </TouchableOpacity>
+        )}
       </View>
       <ScrollView className="flex-1 px-4 pt-2 pb-8">
         <View className="bg-[#181F2A] rounded-2xl p-6 shadow-lg mb-6">
@@ -118,6 +178,21 @@ export default function TipDetailScreen({ route, navigation }) {
             </View>
           </View>
           {renderMarkdownWithCodeBlocks(tip?.desc)}
+          
+          {/* Save Action Button */}
+          {tip && tech && (
+            <TouchableOpacity
+              onPress={toggleSaveTip}
+              className={`mt-6 py-3 px-6 rounded-full flex-row items-center justify-center ${
+                isSaved ? 'bg-red-500' : 'bg-[#0cb9f2]'
+              }`}
+            >
+              <Text className="text-white font-semibold text-base mr-2">
+                {isSaved ? 'Remove from Saved' : 'Save This Tip'}
+              </Text>
+              <Text className="text-white text-lg">{isSaved ? '💔' : '💾'}</Text>
+            </TouchableOpacity>
+          )}
         </View>
       </ScrollView>
     </SafeAreaView>

@@ -24,21 +24,29 @@ export default function App() {
     // Handle notification responses (when user taps notification)
     const subscription = Notifications.addNotificationResponseReceivedListener(response => {
       const notificationData = response.notification.request.content.data;
+      console.log('Notification tapped, data:', notificationData);
       
       if (notificationData.screen === 'QuizScreen') {
+        console.log('Notification data matches QuizScreen, checking login status...');
         // Check if user is logged in
         AsyncStorage.getItem('token').then(token => {
+          console.log('Token status:', token ? 'Found' : 'Not found');
           if (token) {
+            console.log('User logged in, navigating to Quiz with subject:', notificationData.subject);
             navigationRef.current?.navigate('App', {
               screen: 'MainTabs',
               params: {
                 screen: 'Quiz',
                 params: {
-                  autoStartSubject: notificationData.subject
+                  screen: 'QuizMain',
+                  params: {
+                    autoStartSubject: notificationData.subject
+                  }
                 }
               }
             });
           } else {
+            console.log('User not logged in, navigating to LoginScreen');
             navigationRef.current?.navigate('App', {
               screen: 'LoginScreen'
             });

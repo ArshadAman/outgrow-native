@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useRef, useEffect } from "react";
 import {
   View,
   Text,
@@ -8,13 +8,25 @@ import {
   Alert,
   Image,
   StatusBar,
-  ScrollView,
   KeyboardAvoidingView,
   Platform,
+  Keyboard,
+  Animated,
+  SafeAreaView,
+  Easing,
 } from "react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { loginSchema } from "../utils/validation";
 import { login } from "../auth/authService";
+import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
+import { StyleSheet } from 'react-native';
+
+// --- Symbol physics config ---
+const SYMBOLS = [
+  '{ }', '<>', '</>', '()', '/* */', '//', 'const', 'let', '=>', '===', '[ ]', 'import', 'export', 'return', 'if', 'else', 'try', 'catch', 'function', 'class', '...', '||', '&&', 'async', 'await'
+];
+const SYMBOL_COUNT = 18;
+const SYMBOL_AREA_WIDTH = 350;
 
 const SOCIALS = [
   {
@@ -41,6 +53,155 @@ export default function LoginScreen({ navigation }) {
   const [values, setValues] = useState({ username: "", password: "" });
   const [errors, setErrors] = useState({});
   const [loading, setLoading] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
+  const [keyboardHeight, setKeyboardHeight] = useState(0);
+  const shiftAnim = useRef(new Animated.Value(0)).current;
+  const logoAnim = useRef(new Animated.Value(1)).current; // 1 = full size/opacity
+  const googleBtnRef = useRef(null);
+  const [symbolAreaHeight, setSymbolAreaHeight] = useState(160); // Default, will update
+  const [symbolAreaReady, setSymbolAreaReady] = useState(false);
+  // --- Symbol physics state ---
+  const [symbolPositions, setSymbolPositions] = useState(() =>
+    Array.from({ length: SYMBOL_COUNT }, () => new Animated.ValueXY({
+      x: Math.random() * (SYMBOL_AREA_WIDTH - 40),
+      y: Math.random() * (symbolAreaHeight - 40),
+    }))
+  );
+  const [symbolVelocities, setSymbolVelocities] = useState(() =>
+    Array.from({ length: SYMBOL_COUNT }, () => ({
+      x: (Math.random() - 0.5) * 1.2,
+      y: (Math.random() - 0.5) * 1.2,
+    }))
+  );
+  const [floatPhases] = useState(() =>
+    Array.from({ length: SYMBOL_COUNT }, () => Math.random() * Math.PI * 2)
+  );
+  const floatAnim = useRef(new Animated.Value(0)).current;
+  const symbolPositionsRef = useRef(symbolPositions);
+  const symbolVelocitiesRef = useRef(symbolVelocities);
+  useEffect(() => { symbolPositionsRef.current = symbolPositions; }, [symbolPositions]);
+  useEffect(() => { symbolVelocitiesRef.current = symbolVelocities; }, [symbolVelocities]);
+
+  useEffect(() => {
+    Animated.loop(
+      Animated.timing(floatAnim, {
+        toValue: 1,
+        duration: 6000,
+        easing: Easing.linear,
+        useNativeDriver: true,
+      })
+    ).start();
+  }, [floatAnim]);
+
+  useEffect(() => {
+    let lastTime = Date.now();
+    let rafId;
+    function animateSymbols() {
+      const now = Date.now();
+      const dt = Math.min((now - lastTime) / 1000, 1/30); // Clamp to avoid big jumps
+      lastTime = now;
+      const positions = symbolPositionsRef.current;
+      const velocities = symbolVelocitiesRef.current;
+      for (let i = 0; i < SYMBOL_COUNT; i++) {
+        let pos = positions[i];
+        let vel = velocities[i];
+        let { x, y } = pos.__getValue();
+        if (x < 0) { vel.x = Math.abs(vel.x); }
+        if (x > SYMBOL_AREA_WIDTH - 40) { vel.x = -Math.abs(vel.x); }
+        if (y < 0) { vel.y = Math.abs(vel.y); }
+        if (y > symbolAreaHeight - 40) { vel.y = -Math.abs(vel.y); }
+        for (let j = 0; j < SYMBOL_COUNT; j++) {
+          if (i !== j) {
+            let other = positions[j].__getValue();
+            let dx = x - other.x;
+            let dy = y - other.y;
+            let dist = Math.sqrt(dx * dx + dy * dy);
+            if (dist < 36) {
+              let angle = Math.atan2(dy, dx);
+              vel.x += Math.cos(angle) * 0.2 * dt * 60;
+              vel.y += Math.sin(angle) * 0.2 * dt * 60;
+            }
+          }
+        }
+        vel.x *= 0.995;
+        vel.y *= 0.995;
+        vel.x = Math.max(-0.7, Math.min(0.7, vel.x));
+        vel.y = Math.max(-0.7, Math.min(0.7, vel.y));
+        pos.setValue({ x: x + vel.x, y: y + vel.y });
+      }
+      rafId = requestAnimationFrame(animateSymbols);
+    }
+    rafId = requestAnimationFrame(animateSymbols);
+    return () => cancelAnimationFrame(rafId);
+  }, [symbolAreaHeight]);
+
+  useEffect(() => {
+    if (symbolAreaReady && symbolAreaHeight > 50) {
+      const newPositions = [];
+      const newVelocities = [];
+      for (let i = 0; i < SYMBOL_COUNT; i++) {
+        const x = Math.random() * (SYMBOL_AREA_WIDTH - 60) + 10 + Math.random() * 10;
+        const y = Math.random() * (symbolAreaHeight - 60) + 10 + Math.random() * 10;
+        newPositions.push(new Animated.ValueXY({ x, y }));
+        newVelocities.push({
+          x: (Math.random() - 0.5) * 1.2,
+          y: (Math.random() - 0.5) * 1.2,
+        });
+      }
+      setSymbolPositions(newPositions);
+      setSymbolVelocities(newVelocities);
+    }
+  }, [symbolAreaHeight, symbolAreaReady]);
+
+  useEffect(() => {
+    const onKeyboardShow = (e) => {
+      const height = e.endCoordinates ? e.endCoordinates.height : 0;
+      setKeyboardHeight(height);
+      Animated.parallel([
+        Animated.spring(shiftAnim, {
+          toValue: -height / 2.8, // slightly more shift
+          speed: 18,
+          bounciness: 7,
+          useNativeDriver: true,
+        }),
+        Animated.timing(logoAnim, {
+          toValue: 0.7, // scale down and fade
+          duration: 260,
+          easing: Easing.out(Easing.cubic),
+          useNativeDriver: true,
+        })
+      ]).start();
+    };
+    const onKeyboardHide = () => {
+      setKeyboardHeight(0);
+      Animated.parallel([
+        Animated.timing(shiftAnim, {
+          toValue: 0,
+          duration: 350,
+          easing: Easing.out(Easing.cubic),
+          useNativeDriver: true,
+        }),
+        Animated.timing(logoAnim, {
+          toValue: 1,
+          duration: 350,
+          easing: Easing.out(Easing.cubic),
+          useNativeDriver: true,
+        })
+      ]).start();
+    };
+    const showSub = Keyboard.addListener(
+      Platform.OS === "ios" ? "keyboardWillShow" : "keyboardDidShow",
+      onKeyboardShow
+    );
+    const hideSub = Keyboard.addListener(
+      Platform.OS === "ios" ? "keyboardWillHide" : "keyboardDidHide",
+      onKeyboardHide
+    );
+    return () => {
+      showSub.remove();
+      hideSub.remove();
+    };
+  }, [shiftAnim, logoAnim]);
 
   const handleChange = (field, value) => {
     setValues({ ...values, [field]: value });
@@ -75,121 +236,140 @@ export default function LoginScreen({ navigation }) {
   };
 
   return (
-    <KeyboardAvoidingView
-      className="flex-1"
-      behavior={Platform.OS === "ios" ? "padding" : undefined}
-      keyboardVerticalOffset={Platform.OS === "ios" ? 0 : 24}
-    >
-      <ScrollView
-        className="flex-1 bg-auth-background"
-        contentContainerStyle={{ flexGrow: 1, paddingBottom: 48 }}
-        keyboardShouldPersistTaps="handled"
+    <View style={{ flex: 1, backgroundColor: '#111618' }}>
+      {/* Subtle, animated code-inspired background */}
+      <View style={styles.bgContainer} pointerEvents="none">
+        {/* Physics-animated coding symbols, use limited area */}
+        {symbolPositions.map((pos, i) => {
+          const floatY = floatAnim.interpolate({
+            inputRange: [0, 1],
+            outputRange: [0, Math.sin(floatPhases[i] + Math.PI * 2) * 12],
+          });
+          const floatX = floatAnim.interpolate({
+            inputRange: [0, 1],
+            outputRange: [0, Math.cos(floatPhases[i] + Math.PI * 2) * 8],
+          });
+          return (
+            <Animated.Text
+              key={`${i}-${symbolAreaHeight}`}
+              style={[
+                styles.codeElement,
+                {
+                  color: i % 3 === 0 ? '#0cb9f2' : i % 3 === 1 ? '#7e8a9a' : '#fff',
+                  fontSize: 22 + (i % 4) * 4,
+                  opacity: 0.10 + (i % 4) * 0.04,
+                  position: 'absolute',
+                  transform: [
+                    { translateX: Animated.add(pos.x, floatX) },
+                    { translateY: Animated.add(pos.y, floatY) },
+                  ],
+                },
+              ]}
+            >{SYMBOLS[i % SYMBOLS.length]}</Animated.Text>
+          );
+        })}
+      </View>
+      <KeyboardAvoidingView
+        style={{ flex: 1 }}
+        behavior={Platform.OS === "ios" ? "padding" : undefined}
+        keyboardVerticalOffset={Platform.OS === "ios" ? 24 : 0}
       >
-        <StatusBar barStyle="light-content" backgroundColor="#10131a" />
-        <View className="h-8" />
+        <Animated.View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', paddingBottom: Platform.OS === 'ios' ? 90 : 70, transform: [{ translateY: shiftAnim }] }}>
+          {/* Logo, title, and subtitle all shift and animate together */}
+          <Animated.View style={{ alignItems: 'center', marginTop: 24, marginBottom: 0, opacity: logoAnim, transform: [{ scale: logoAnim }] }}>
+            <Image
+              source={require("../../assets/icon.png")}
+              style={{ width: 80, height: 80, borderRadius: 20, backgroundColor: '#232D3F', borderWidth: 2, borderColor: '#0cb9f2', marginBottom: 10, shadowColor: '#0cb9f2', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.25, shadowRadius: 8, elevation: 8 }}
+              resizeMode="contain"
+            />
+          </Animated.View>
+          <View style={{ alignItems: 'center', marginBottom: 18 }}>
+            <Text style={{ fontSize: 27, fontWeight: '800', color: '#fff', textAlign: 'center', marginBottom: 4, letterSpacing: -0.5 }}>Welcome Back</Text>
+            <Text style={{ fontSize: 16, color: '#9cb2ba', textAlign: 'center', marginBottom: 28 }}>Sign in to continue your journey</Text>
+          </View>
+          {/* Form area */}
+          <View style={{ width: '100%' }}>
+            {/* Google Sign In Button */}
+            <TouchableOpacity 
+              ref={googleBtnRef}
+              onLayout={e => {
+                const layout = e.nativeEvent.layout;
+                setSymbolAreaHeight(layout.y + layout.height + 410); // match SignupScreen
+                setSymbolAreaReady(true);
+              }}
+              style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', marginBottom: 24, height: 52, backgroundColor: '#232D3F', borderRadius: 14, borderWidth: 1.5, borderColor: '#0cb9f2', marginHorizontal: 18 }}
+              activeOpacity={0.85}
+            >
+              <Image
+                source={{ uri: "https://img.icons8.com/plasticine/100/google-logo.png" }}
+                style={{ width: 28, height: 28, marginRight: 12 }}
+                resizeMode="contain"
+              />
+              <Text style={{ fontSize: 16, fontWeight: '700', color: '#fff' }}>Sign in with Google</Text>
+            </TouchableOpacity>
 
-        {/* Logo */}
-        <View className="items-center mb-2">
-          <Image
-            source={require("../../assets/icon.png")}
-            className="w-[90px] h-[90px] rounded-3xl bg-auth-card border-2 border-auth-border"
-            style={{
-              shadowColor: "#0cb9f2",
-              shadowOpacity: 0.15,
-              shadowRadius: 8,
-              elevation: 6,
-            }}
-            resizeMode="contain"
-          />
-        </View>
+            {/* Divider */}
+            <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 18, marginHorizontal: 18 }}>
+              <View style={{ flex: 1, height: 1, backgroundColor: '#232D3F' }} />
+              <Text style={{ marginHorizontal: 12, color: '#7e8a9a', fontSize: 14, fontWeight: '500' }}>or</Text>
+              <View style={{ flex: 1, height: 1, backgroundColor: '#232D3F' }} />
+            </View>
 
-        {/* Welcome Text */}
-        <Text className="mx-6 mt-2 text-auth-xl text-center font-bold text-auth-text tracking-wide mb-2">
-          Welcome Back, Achiever!
-        </Text>
+            {/* Username Field */}
+            <View style={{ marginBottom: 16, marginHorizontal: 18 }}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: '#232D3F', borderRadius: 10, paddingHorizontal: 12, borderWidth: 1, borderColor: '#2c3335' }}>
+                <Ionicons name="person-outline" size={20} color="#7e8a9a" style={{ marginRight: 8 }} />
+                <TextInput
+                  style={{ flex: 1, height: 48, color: '#fff', fontSize: 16 }}
+                  placeholderTextColor="#7e8a9a"
+                  placeholder="Username or Email"
+                  value={values.username}
+                  onChangeText={(v) => handleChange("username", v)}
+                  autoCapitalize="none"
+                  keyboardType="email-address"
+                  returnKeyType="next"
+                  selectionColor="#0cb9f2"
+                />
+              </View>
+              {errors.username ? (
+                <Text style={{ color: '#ff5a5f', fontSize: 13, marginTop: 2, marginLeft: 4 }}>{errors.username}</Text>
+              ) : null}
+            </View>
 
-        {/* Google Sign In Button */}
-        <TouchableOpacity 
-          className="flex-row items-center justify-center mx-6 mt-[18px] h-[45px] bg-auth-card rounded-[14px] border border-auth-border"
-          style={{
-            shadowColor: "#0cb9f2",
-            shadowOpacity: 0.08,
-            shadowRadius: 6,
-            elevation: 2,
-          }}
-          activeOpacity={0.85}
-        >
-          <Image
-            source={{
-              uri: "https://img.icons8.com/plasticine/100/google-logo.png",
-            }}
-            className="w-8 h-8 mr-2"
-            resizeMode="contain"
-          />
-          <Text className="text-auth-lg font-semibold text-auth-text">
-            Sign in with Google
-          </Text>
-        </TouchableOpacity>
+            {/* Password Field */}
+            <View style={{ marginBottom: 10, marginHorizontal: 18 }}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: '#232D3F', borderRadius: 10, paddingHorizontal: 12, borderWidth: 1, borderColor: '#2c3335' }}>
+                <MaterialCommunityIcons name="lock-outline" size={20} color="#7e8a9a" style={{ marginRight: 8 }} />
+                <TextInput
+                  style={{ flex: 1, height: 48, color: '#fff', fontSize: 16 }}
+                  placeholderTextColor="#7e8a9a"
+                  placeholder="Password"
+                  value={values.password}
+                  onChangeText={(v) => handleChange("password", v)}
+                  secureTextEntry={!showPassword}
+                  autoCapitalize="none"
+                  returnKeyType="done"
+                  selectionColor="#0cb9f2"
+                />
+                <TouchableOpacity onPress={() => setShowPassword((v) => !v)}>
+                  <Ionicons name={showPassword ? "eye-off-outline" : "eye-outline"} size={20} color="#7e8a9a" />
+                </TouchableOpacity>
+              </View>
+              {errors.password ? (
+                <Text style={{ color: '#ff5a5f', fontSize: 13, marginTop: 2, marginLeft: 4 }}>{errors.password}</Text>
+              ) : null}
+            </View>
 
-        {/* Divider */}
-        <View className="flex-row items-center mx-6 mt-8">
-          <View className="flex-1 h-px bg-auth-border opacity-50" />
-          <Text className="mx-[10px] bg-auth-background text-auth-textMuted text-[15px] font-medium">
-            or sign in with email
-          </Text>
-          <View className="flex-1 h-px bg-auth-border opacity-50" />
-        </View>
-
-        {/* Form */}
-        <View className="mx-6 mt-8">
-          <Text className="text-auth-base font-medium text-auth-text mb-[7px]">
-            Username or Email
-          </Text>
-          <TextInput
-            className="w-full h-[45px] bg-auth-card rounded-[10px] px-4 text-auth-text border border-auth-border mb-2 text-auth-sm"
-            placeholderTextColor="#7e8a9a"
-            placeholder="Enter your username or email"
-            value={values.username}
-            onChangeText={(v) => handleChange("username", v)}
-            autoCapitalize="none"
-          />
-          <Text className="text-auth-error min-h-[18px] mb-1 text-[13px]">
-            {errors.username || " "}
-          </Text>
-
-          <View className="flex-row justify-between items-center mb-[7px] mt-2">
-            <Text className="text-auth-base font-medium text-auth-text">
-              Password
-            </Text>
-            <TouchableOpacity>
-              <Text className="text-auth-primary text-[15px] font-semibold">
-                Forgot?
-              </Text>
+            {/* Forgot Password */}
+            <TouchableOpacity style={{ alignSelf: 'flex-end', marginBottom: 18, marginRight: 18 }} activeOpacity={0.7}>
+              <Text style={{ color: '#0cb9f2', fontSize: 14, fontWeight: '600' }}>Forgot password?</Text>
             </TouchableOpacity>
           </View>
-          <TextInput
-            className="w-full h-[45px] bg-auth-card rounded-[10px] px-4 text-auth-text border border-auth-border mb-2 text-auth-sm"
-            placeholderTextColor="#7e8a9a"
-            placeholder="Enter your password"
-            value={values.password}
-            onChangeText={(v) => handleChange("password", v)}
-            secureTextEntry
-          />
-          <Text className="text-auth-error min-h-[18px] mb-1 text-[13px]">
-            {errors.password || " "}
-          </Text>
-        </View>
-
-        {/* Sign In Button */}
-        <View className="mx-6 mt-2">
+        </Animated.View>
+        {/* Sign In Button pinned to bottom */}
+        <View style={{ position: 'absolute', left: 0, right: 0, bottom: 0, paddingHorizontal: 18, paddingBottom: Platform.OS === 'ios' ? 32 : 18, backgroundColor: '#111618' }}>
           <TouchableOpacity
-            className="h-[45px] bg-auth-primary rounded-[14px] items-center justify-center"
-            style={{
-              shadowColor: "#0cb9f2",
-              shadowOpacity: 0.18,
-              shadowRadius: 8,
-              elevation: 4,
-            }}
+            style={{ height: 52, backgroundColor: '#0cb9f2', borderRadius: 14, alignItems: 'center', justifyContent: 'center', marginBottom: 8 }}
             onPress={handleLogin}
             disabled={loading}
             activeOpacity={0.85}
@@ -197,27 +377,29 @@ export default function LoginScreen({ navigation }) {
             {loading ? (
               <ActivityIndicator color="#fff" />
             ) : (
-              <Text className="text-auth-background text-auth-md font-bold tracking-wide">
-                Sign In
-              </Text>
+              <Text style={{ color: '#fff', fontSize: 17, fontWeight: '800', letterSpacing: 0.2 }}>Sign In</Text>
             )}
           </TouchableOpacity>
-        </View>
-
-        {/* Sign Up */}
-        <View className="mt-6 mb-8 items-center">
-          <View className="flex-row justify-center">
-            <Text className="text-auth-textMuted text-auth-base font-medium">
-              Don't have an account?{" "}
-            </Text>
-            <TouchableOpacity onPress={() => navigation.navigate("SignupScreen")}>
-              <Text className="text-auth-primary text-auth-base font-bold ml-[2px]">
-                Sign up
-              </Text>
+          <View style={{ alignItems: 'center', flexDirection: 'row', justifyContent: 'center', marginBottom: 8 }}>
+            <Text style={{ color: '#9cb2ba', fontSize: 14, fontWeight: '500' }}>Don't have an account? </Text>
+            <TouchableOpacity onPress={() => navigation.replace("SignupScreen")}> 
+              <Text style={{ color: '#0cb9f2', fontSize: 14, fontWeight: '700', textDecorationLine: 'underline' }}>Sign up</Text>
             </TouchableOpacity>
           </View>
         </View>
-      </ScrollView>
-    </KeyboardAvoidingView>
+      </KeyboardAvoidingView>
+    </View>
   );
 }
+
+const styles = StyleSheet.create({
+  bgContainer: {
+    ...StyleSheet.absoluteFillObject,
+    zIndex: 0,
+  },
+  codeElement: {
+    position: 'absolute',
+    fontWeight: 'bold',
+    fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace',
+  },
+});

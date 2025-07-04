@@ -2,176 +2,131 @@ import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
-  SafeAreaView,
   TouchableOpacity,
+  Switch,
   ScrollView,
   Alert,
-  Switch,
-  Platform
+  Platform,
+  ActivityIndicator
 } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import DateTimePicker from '@react-native-community/datetimepicker';
+import { Ionicons } from '@expo/vector-icons';
 import { useQuiz } from '../context/QuizContext';
 import {
-  loadNotificationTimes,
-  saveNotificationTimes,
-  formatTimeDisplay,
-  getNextNotificationInfo,
-  hasTimeConflicts,
-  DEFAULT_NOTIFICATION_TIMES
+  loadNotificationSlots,
+  updateNotificationSlot,
+  scheduleAllNotificationSlots,
+  sendTestNotification
 } from '../utils/notificationUtils';
 
 export default function NotificationSettingsScreen({ navigation }) {
-  const { notificationsEnabled, toggleNotifications, rescheduleNotifications } = useQuiz();
-  const [notificationTimes, setNotificationTimes] = useState(DEFAULT_NOTIFICATION_TIMES);
+  const { notificationsEnabled, toggleNotifications } = useQuiz();
+  const [notificationSlots, setNotificationSlots] = useState([]);
   const [showTimePicker, setShowTimePicker] = useState(null);
-  const [tempTime, setTempTime] = useState(new Date());
-  const [isLoading, setIsLoading] = useState(true);
-  const [hasChanges, setHasChanges] = useState(false);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    loadSettings();
+    loadSlots();
   }, []);
 
-  const loadSettings = async () => {
+  const loadSlots = async () => {
     try {
-      const times = await loadNotificationTimes();
-      setNotificationTimes(times);
+      setLoading(true);
+      const slots = await loadNotificationSlots();
+      setNotificationSlots(slots);
     } catch (error) {
-      console.error('Error loading notification settings:', error);
-      Alert.alert('Error', 'Failed to load notification settings');
+      console.error('Error loading notification slots:', error);
     } finally {
-      setIsLoading(false);
+      setLoading(false);
     }
   };
 
-  const handleTimeChange = (event, selectedTime) => {
-    if (Platform.OS === 'android') {
+  const handleSlotToggle = async (slotId, enabled) => {
+    try {
+      const updatedSlots = await updateNotificationSlot(slotId, { enabled });
+      if (updatedSlots) {
+        setNotificationSlots(updatedSlots);
+      }
+    } catch (error) {
+      console.error('Error updating slot:', error);
+      Alert.alert('Error', 'Failed to update notification slot');
+    }
+  };
+
+  const handleTimeChange = async (slotId, selectedTime) => {
+    try {
+      if (selectedTime) {
+        const hour = selectedTime.getHours();
+        const minute = selectedTime.getMinutes();
+        
+        const updatedSlots = await updateNotificationSlot(slotId, { hour, minute });
+        if (updatedSlots) {
+          setNotificationSlots(updatedSlots);
+        }
+      }
+    } catch (error) {
+      console.error('Error updating time:', error);
+      Alert.alert('Error', 'Failed to update notification time');
+    } finally {
       setShowTimePicker(null);
     }
-    
-    if (selectedTime && showTimePicker !== null) {
-      const newTimes = [...notificationTimes];
-      newTimes[showTimePicker] = {
-        ...newTimes[showTimePicker],
-        hour: selectedTime.getHours(),
-        minute: selectedTime.getMinutes()
-      };
-      
-      setNotificationTimes(newTimes);
-      setHasChanges(true);
-      
-      if (Platform.OS === 'ios') {
-        // On iOS, we need to manually close the picker
-        setShowTimePicker(null);
-      }
-    }
   };
 
-  const toggleTimeSlot = (index) => {
-    const newTimes = [...notificationTimes];
-    newTimes[index] = {
-      ...newTimes[index],
-      enabled: !newTimes[index].enabled
-    };
-    
-    setNotificationTimes(newTimes);
-    setHasChanges(true);
-  };
-
-  const openTimePicker = (index) => {
-    const time = notificationTimes[index];
+  const formatTime = (hour, minute) => {
     const date = new Date();
-    date.setHours(time.hour, time.minute, 0, 0);
-    setTempTime(date);
-    setShowTimePicker(index);
+    date.setHours(hour, minute);
+    return date.toLocaleTimeString('en-US', { 
+      hour: 'numeric', 
+      minute: '2-digit',
+      hour12: true 
+    });
   };
 
-  const saveSettings = async () => {
+  const handleTestNotification = async () => {
     try {
-      // Check for time conflicts
-      if (hasTimeConflicts(notificationTimes)) {
+      const success = await sendTestNotification();
+      if (success) {
         Alert.alert(
-          'Time Conflict',
-          'Multiple notifications are set for the same time. Please choose different times.',
-          [{ text: 'OK' }]
+          'Test Notification Sent! 🔔',
+          'Check your notifications - a test quiz should appear immediately!'
         );
-        return;
+      } else {
+        Alert.alert('Error', 'Failed to send test notification');
       }
-
-      await saveNotificationTimes(notificationTimes);
-      
-      // If notifications are enabled, reschedule them with new times using robust method
-      if (notificationsEnabled) {
-        const success = await rescheduleNotifications();
-        if (!success) {
-          Alert.alert('Warning', 'Settings saved but failed to reschedule notifications. Please try toggling notifications off and on again.');
-          return;
-        }
-      }
-      
-      setHasChanges(false);
-      
-      Alert.alert(
-        'Settings Saved! ✅',
-        'Your notification preferences have been updated.',
-        [{ text: 'OK' }]
-      );
     } catch (error) {
-      console.error('Error saving settings:', error);
-      Alert.alert('Error', 'Failed to save notification settings');
+      console.error('Error sending test notification:', error);
+      Alert.alert('Error', 'Failed to send test notification');
     }
   };
 
-  const resetToDefaults = () => {
-    Alert.alert(
-      'Reset to Defaults',
-      'This will reset all notification times to their default values. Continue?',
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Reset',
-          style: 'destructive',
-          onPress: () => {
-            setNotificationTimes(DEFAULT_NOTIFICATION_TIMES);
-            setHasChanges(true);
-          }
-        }
-      ]
-    );
-  };
-
-  const handleBack = () => {
-    if (hasChanges) {
+  const rescheduleAll = async () => {
+    try {
       Alert.alert(
-        'Unsaved Changes',
-        'You have unsaved changes. What would you like to do?',
+        'Reschedule Notifications',
+        'This will reschedule all notifications with new random subjects. Continue?',
         [
-          { text: 'Discard', style: 'destructive', onPress: () => navigation.goBack() },
-          { text: 'Save', onPress: saveSettings },
-          { text: 'Cancel', style: 'cancel' }
+          { text: 'Cancel', style: 'cancel' },
+          {
+            text: 'Reschedule',
+            onPress: async () => {
+              await scheduleAllNotificationSlots();
+              Alert.alert('Success', 'All notifications rescheduled with new subjects!');
+            }
+          }
         ]
       );
-    } else {
-      navigation.goBack();
+    } catch (error) {
+      console.error('Error rescheduling notifications:', error);
+      Alert.alert('Error', 'Failed to reschedule notifications');
     }
   };
 
-  const getTimeSlotLabel = (id) => {
-    const labels = {
-      morning: 'Morning',
-      noon: 'Noon',
-      afternoon: 'Afternoon',
-      evening: 'Evening',
-      night: 'Night'
-    };
-    return labels[id] || 'Custom';
-  };
-
-  if (isLoading) {
+  if (loading) {
     return (
       <SafeAreaView className="flex-1 bg-[#111618] justify-center items-center">
-        <Text className="text-white text-lg">Loading settings...</Text>
+        <ActivityIndicator size="large" color="#0cb9f2" />
+        <Text className="text-white text-lg mt-4">Loading...</Text>
       </SafeAreaView>
     );
   }
@@ -179,32 +134,21 @@ export default function NotificationSettingsScreen({ navigation }) {
   return (
     <SafeAreaView className="flex-1 bg-[#111618]">
       {/* Header */}
-      <View className="flex-row items-center justify-between p-4 border-b border-[#3b4e54]">
-        <TouchableOpacity onPress={handleBack} className="flex-row items-center">
-          <Ionicons name="arrow-back" size={24} color="#fff" />
-          <Text className="text-white text-lg font-semibold ml-2">Notification Settings</Text>
+      <View className="flex-row items-center px-6 py-4 border-b border-[#232D3F]">
+        <TouchableOpacity 
+          onPress={() => navigation.goBack()}
+          className="mr-4"
+        >
+          <Ionicons name="arrow-back" size={24} color="#0cb9f2" />
         </TouchableOpacity>
-        
-        {hasChanges && (
-          <TouchableOpacity 
-            onPress={saveSettings}
-            className="bg-[#0cb9f2] px-4 py-2 rounded-lg"
-          >
-            <Text className="text-white font-semibold">Save</Text>
-          </TouchableOpacity>
-        )}
+        <Text className="text-white text-xl font-bold">Notification Settings</Text>
       </View>
 
-      <ScrollView className="flex-1">
-        {/* Master notification toggle */}
-        <View className="p-4 border-b border-[#232D3F]">
-          <View className="flex-row items-center justify-between">
-            <View className="flex-1">
-              <Text className="text-white text-lg font-semibold">Quiz Notifications</Text>
-              <Text className="text-[#a2afb3] text-sm mt-1">
-                {getNextNotificationInfo(notificationTimes)}
-              </Text>
-            </View>
+      <ScrollView className="flex-1 px-6 py-6">
+        {/* Master Toggle */}
+        <View className="bg-[#181F2A] rounded-2xl p-5 mb-6 border border-[#232D3F]">
+          <View className="flex-row justify-between items-center mb-3">
+            <Text className="text-white text-lg font-bold">Quiz Notifications</Text>
             <Switch
               value={notificationsEnabled}
               onValueChange={toggleNotifications}
@@ -212,69 +156,116 @@ export default function NotificationSettingsScreen({ navigation }) {
               thumbColor="#fff"
             />
           </View>
+          <Text className="text-[#a2afb3] text-sm mb-4">
+            {notificationsEnabled 
+              ? 'Receive daily quiz reminders at your scheduled times'
+              : 'Enable to receive quiz reminders'
+            }
+          </Text>
+          
+          {notificationsEnabled && (
+            <View className="flex-row gap-3">
+              <TouchableOpacity
+                onPress={handleTestNotification}
+                className="flex-1 bg-[#0cb9f2] py-3 px-4 rounded-xl"
+                activeOpacity={0.8}
+              >
+                <Text className="text-white text-center font-semibold">Test Notification</Text>
+              </TouchableOpacity>
+              
+              <TouchableOpacity
+                onPress={rescheduleAll}
+                className="flex-1 bg-[#232D3F] py-3 px-4 rounded-xl"
+                activeOpacity={0.8}
+              >
+                <Text className="text-white text-center font-semibold">Reschedule All</Text>
+              </TouchableOpacity>
+            </View>
+          )}
         </View>
 
-        {/* Notification times */}
-        <View className="p-4">
-          <View className="flex-row items-center justify-between mb-4">
-            <Text className="text-white text-lg font-semibold">Custom Times</Text>
-            <TouchableOpacity onPress={resetToDefaults}>
-              <Text className="text-[#0cb9f2] font-medium">Reset to Defaults</Text>
-            </TouchableOpacity>
-          </View>
+        {/* Notification Slots */}
+        {notificationsEnabled && (
+          <View className="bg-[#181F2A] rounded-2xl p-5 border border-[#232D3F]">
+            <Text className="text-white text-lg font-bold mb-4">Notification Schedule</Text>
+            <Text className="text-[#a2afb3] text-sm mb-4">
+              Customize your 5 daily notification slots. Each notification will have a random quiz subject.
+            </Text>
 
-          {notificationTimes.map((time, index) => (
-            <View key={time.id} className="mb-4">
-              <View className="flex-row items-center justify-between bg-[#232D3F] p-4 rounded-lg">
+            {notificationSlots.map((slot, index) => (
+              <View 
+                key={slot.id}
+                className={`flex-row justify-between items-center py-4 ${
+                  index < notificationSlots.length - 1 ? 'border-b border-[#232D3F]' : ''
+                }`}
+              >
                 <View className="flex-1">
-                  <Text className="text-white font-medium">
-                    {getTimeSlotLabel(time.id)}
+                  <Text className="text-white text-base font-semibold">
+                    Slot {slot.id}
                   </Text>
-                  <TouchableOpacity 
-                    onPress={() => openTimePicker(index)}
+                  <TouchableOpacity
+                    onPress={() => setShowTimePicker(slot.id)}
+                    disabled={!slot.enabled}
                     className="mt-1"
                   >
-                    <Text className="text-[#0cb9f2] text-lg font-bold">
-                      {formatTimeDisplay(time.hour, time.minute)}
+                    <Text className={`text-lg font-bold ${
+                      slot.enabled ? 'text-[#0cb9f2]' : 'text-[#3b4e54]'
+                    }`}>
+                      {formatTime(slot.hour, slot.minute)}
                     </Text>
                   </TouchableOpacity>
                 </View>
-                
+
                 <Switch
-                  value={time.enabled}
-                  onValueChange={() => toggleTimeSlot(index)}
+                  value={slot.enabled}
+                  onValueChange={(enabled) => handleSlotToggle(slot.id, enabled)}
                   trackColor={{ false: "#3b4e54", true: "#0cb9f2" }}
                   thumbColor="#fff"
                 />
               </View>
-            </View>
-          ))}
-        </View>
-
-        {/* Information section */}
-        <View className="p-4 mx-4 bg-[#232D3F] rounded-lg mb-4">
-          <View className="flex-row items-center mb-2">
-            <Ionicons name="information-circle-outline" size={20} color="#0cb9f2" />
-            <Text className="text-[#0cb9f2] font-semibold ml-2">Tips</Text>
+            ))}
           </View>
-          <Text className="text-[#a2afb3] text-sm leading-5">
-            • Notifications will appear even when the app is closed{'\n'}
-            • Times are based on your device's local timezone{'\n'}
+        )}
+
+        {/* Info Section */}
+        <View className="bg-[#232D3F] rounded-2xl p-5 mt-6 mb-10">
+          <View className="flex-row items-center mb-3">
+            <Ionicons name="information-circle" size={20} color="#0cb9f2" />
+            <Text className="text-white text-base font-semibold ml-2">How it works</Text>
+          </View>
+          <Text className="text-[#a2afb3] text-sm leading-6">
+            • Set up to 5 notification times per day{'\n'}
+            • Each notification will have a random quiz subject{'\n'}
             • Tap on a time to change it{'\n'}
-            • Use the switches to enable/disable specific times{'\n'}
-            • Master toggle controls all notifications
+            • Toggle individual slots on/off{'\n'}
+            • Notifications will repeat daily at your set times
           </Text>
         </View>
       </ScrollView>
 
       {/* Time Picker Modal */}
-      {showTimePicker !== null && (
+      {showTimePicker && (
         <DateTimePicker
-          value={tempTime}
+          value={(() => {
+            const slot = notificationSlots.find(s => s.id === showTimePicker);
+            const date = new Date();
+            date.setHours(slot.hour, slot.minute);
+            return date;
+          })()}
           mode="time"
           is24Hour={false}
           display={Platform.OS === 'ios' ? 'spinner' : 'default'}
-          onChange={handleTimeChange}
+          onChange={(event, selectedTime) => {
+            if (Platform.OS === 'android') {
+              if (event.type === 'set') {
+                handleTimeChange(showTimePicker, selectedTime);
+              } else {
+                setShowTimePicker(null);
+              }
+            } else {
+              handleTimeChange(showTimePicker, selectedTime);
+            }
+          }}
         />
       )}
     </SafeAreaView>

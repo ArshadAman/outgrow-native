@@ -9,23 +9,31 @@ const tabList = ["Quizzes", "Tips"];
 export default function SavedScreen() {
   const [tab, setTab] = useState("Quizzes");
   const [savedQuizzes, setSavedQuizzes] = useState({});
+  const [savedTips, setSavedTips] = useState({});
   const [loading, setLoading] = useState(true);
   const navigation = useNavigation();
 
   useFocusEffect(
     React.useCallback(() => {
-      loadSavedQuizzes();
+      loadSavedContent();
     }, [])
   );
 
-  const loadSavedQuizzes = async () => {
+  const loadSavedContent = async () => {
     try {
-      const saved = await AsyncStorage.getItem('saved_quizzes');
-      if (saved) {
-        setSavedQuizzes(JSON.parse(saved));
+      // Load saved quizzes
+      const savedQuizzesData = await AsyncStorage.getItem('saved_quizzes');
+      if (savedQuizzesData) {
+        setSavedQuizzes(JSON.parse(savedQuizzesData));
+      }
+
+      // Load saved tips
+      const savedTipsData = await AsyncStorage.getItem('saved_tips');
+      if (savedTipsData) {
+        setSavedTips(JSON.parse(savedTipsData));
       }
     } catch (error) {
-      console.error('Error loading saved quizzes:', error);
+      console.error('Error loading saved content:', error);
     } finally {
       setLoading(false);
     }
@@ -41,8 +49,22 @@ export default function SavedScreen() {
     return acc;
   }, {});
 
+  // Group tips by category (using techName as the category)
+  const tipsByCategory = Object.entries(savedTips).reduce((acc, [key, tip]) => {
+    const category = tip.techName || tip.category || 'General';
+    if (!acc[category]) {
+      acc[category] = [];
+    }
+    acc[category].push(tip);
+    return acc;
+  }, {});
+
   const handleSubjectPress = (subject) => {
     navigation.navigate('SavedQuizzesDetail', { subject, quizzes: quizzesBySubject[subject] });
+  };
+
+  const handleTipCategoryPress = (category) => {
+    navigation.navigate('SavedTipsDetail', { category, tips: tipsByCategory[category] });
   };
 
   if (loading) {
@@ -75,32 +97,69 @@ export default function SavedScreen() {
         </View>
       </View>
 
-      {/* Saved Quizzes List */}
+      {/* Content */}
       <ScrollView className="flex-1">
-        {Object.entries(quizzesBySubject).map(([subject, quizzes]) => (
-          <TouchableOpacity
-            key={subject}
-            className="p-4 border-b border-[#3b4e54]"
-            onPress={() => handleSubjectPress(subject)}
-          >
-            <View className="flex-row justify-between items-center">
-              <View className="flex-1">
-                <Text className="text-white text-lg font-bold">{subject}</Text>
-                <Text className="text-[#9cb2ba] text-sm mt-1">
-                  {quizzes.length} saved {quizzes.length === 1 ? 'question' : 'questions'}
+        {tab === "Quizzes" ? (
+          // Quizzes Tab Content
+          <>
+            {Object.entries(quizzesBySubject).map(([subject, quizzes]) => (
+              <TouchableOpacity
+                key={subject}
+                className="p-4 border-b border-[#3b4e54]"
+                onPress={() => handleSubjectPress(subject)}
+              >
+                <View className="flex-row justify-between items-center">
+                  <View className="flex-1">
+                    <Text className="text-white text-lg font-bold">{subject}</Text>
+                    <Text className="text-[#9cb2ba] text-sm mt-1">
+                      {quizzes.length} saved {quizzes.length === 1 ? 'question' : 'questions'}
+                    </Text>
+                  </View>
+                  <Text className="text-[#0cb9f2] text-lg">→</Text>
+                </View>
+              </TouchableOpacity>
+            ))}
+            
+            {Object.keys(quizzesBySubject).length === 0 && (
+              <View className="flex-1 justify-center items-center p-8">
+                <Text className="text-[#9cb2ba] text-center">
+                  No saved quizzes yet. Start a quiz and save interesting questions!
                 </Text>
               </View>
-              <Text className="text-[#0cb9f2] text-lg">→</Text>
-            </View>
-          </TouchableOpacity>
-        ))}
-        
-        {Object.keys(quizzesBySubject).length === 0 && (
-          <View className="flex-1 justify-center items-center p-8">
-            <Text className="text-[#9cb2ba] text-center">
-              No saved quizzes yet. Complete quizzes and save questions to see them here!
-            </Text>
-          </View>
+            )}
+          </>
+        ) : (
+          // Tips Tab Content
+          <>
+            {Object.entries(tipsByCategory).map(([category, tips]) => (
+              <TouchableOpacity
+                key={category}
+                className="p-4 border-b border-[#3b4e54]"
+                onPress={() => handleTipCategoryPress(category)}
+              >
+                <View className="flex-row justify-between items-center">
+                  <View className="flex-1">
+                    <Text className="text-white text-lg font-bold">{category}</Text>
+                    <Text className="text-[#9cb2ba] text-sm mt-1">
+                      {tips.length} saved {tips.length === 1 ? 'tip' : 'tips'}
+                    </Text>
+                    <Text className="text-[#9cb2ba] text-xs mt-1">
+                      Latest: {new Date(tips[tips.length - 1]?.timestamp).toLocaleDateString()}
+                    </Text>
+                  </View>
+                  <Text className="text-[#0cb9f2] text-lg">→</Text>
+                </View>
+              </TouchableOpacity>
+            ))}
+            
+            {Object.keys(tipsByCategory).length === 0 && (
+              <View className="flex-1 justify-center items-center p-8">
+                <Text className="text-[#9cb2ba] text-center">
+                  No saved tips yet. Read some tips and save the ones you find useful!
+                </Text>
+              </View>
+            )}
+          </>
         )}
       </ScrollView>
     </SafeAreaView>

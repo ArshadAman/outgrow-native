@@ -35,16 +35,32 @@ export default function QuizScreen({ route, navigation }) {
 
   // Check for auto-start subject from notification
   useEffect(() => {
-    if (route?.params?.autoStartSubject) {
-      console.log('Auto-starting quiz for subject:', route.params.autoStartSubject);
-      fetchQuiz(route.params.autoStartSubject).then(() => {
-        setQuizStarted(true);
-        startQuiz();
-      });
-      // Clear the parameter to prevent re-triggering
-      navigation.setParams({ autoStartSubject: undefined });
-    }
+    const handleAutoStart = async () => {
+      console.log('QuizScreen route params:', route?.params);
+      if (route?.params?.autoStartSubject) {
+        console.log('Auto-starting quiz for subject:', route.params.autoStartSubject);
+        try {
+          await fetchQuiz(route.params.autoStartSubject);
+          console.log('Quiz fetched, starting quiz...');
+          setQuizStarted(true);
+          // Clear the parameter to prevent re-triggering
+          navigation.setParams({ autoStartSubject: undefined });
+        } catch (error) {
+          console.error('Error auto-starting quiz:', error);
+        }
+      }
+    };
+    
+    handleAutoStart();
   }, [route?.params?.autoStartSubject]);
+
+  // Auto-start the quiz once currentQuiz is loaded and quizStarted is true
+  useEffect(() => {
+    if (quizStarted && currentQuiz && !quizFinished) {
+      console.log('Auto-starting quiz with loaded data...');
+      startQuiz();
+    }
+  }, [currentQuiz, quizStarted, quizFinished]);
 
   useEffect(() => {
     // Reset local selected state when current question changes
@@ -76,9 +92,9 @@ export default function QuizScreen({ route, navigation }) {
     }
   }, [currentQuiz]);
 
-  // If we don't have a quiz, fetch one
+  // If we don't have a quiz and no auto-start is pending, fetch one
   useEffect(() => {
-    if (!currentQuiz && !isLoading) {
+    if (!currentQuiz && !isLoading && !route?.params?.autoStartSubject) {
       fetchQuiz();
     }
   }, []);

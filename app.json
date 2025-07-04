@@ -1,6 +1,6 @@
 {
   "expo": {
-    "name": "outgrow",
+    "name": "Outgrow",
     "slug": "outgrow",
     "version": "1.0.0",
     "orientation": "portrait",
@@ -29,7 +29,7 @@
     },
     "extra": {
       "eas": {
-        "projectId": "397dacaf-02c2-4b8f-afd3-6f35e4e609f2"
+        "projectId": "e2cd8778-8f4b-4b07-a5e8-1604edbede55"
       }
     }
   }
