@@ -1,202 +1,40 @@
 /**
- * Notification utility functions for timezone-aware scheduling
+ * Notification utility functions for slot-based scheduling
  */
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as Notifications from 'expo-notifications';
 
-// Default notification times (in 24-hour format)
-export const DEFAULT_NOTIFICATION_TIMES = [
-  { hour: 8, minute: 30, enabled: true, id: 'morning' },      // 8:30 AM
-  { hour: 12, minute: 0, enabled: true, id: 'noon' },        // 12:00 PM
-  { hour: 15, minute: 30, enabled: true, id: 'afternoon' },  // 3:30 PM
-  { hour: 18, minute: 0, enabled: true, id: 'evening' },     // 6:00 PM
-  { hour: 21, minute: 0, enabled: true, id: 'night' }        // 9:00 PM
+// List of quiz subjects
+export const QUIZ_SUBJECTS = [
+  'Computer Networks',
+  'Database Systems',
+  'Object-Oriented Programming',
+  'C/C++ Programming',
+  'Operating Systems',
+  'Data Structures and Algorithms'
 ];
 
-// Storage key for notification preferences
-export const NOTIFICATION_TIMES_KEY = 'notification_times';
+export const NOTIFICATION_SLOTS_KEY = 'notification_time_slots';
+
+// Default 5 notification slots
+export const DEFAULT_NOTIFICATION_SLOTS = [
+  { id: 1, hour: 8, minute: 0, enabled: true, subject: null },
+  { id: 2, hour: 12, minute: 30, enabled: true, subject: null },
+  { id: 3, hour: 16, minute: 0, enabled: true, subject: null },
+  { id: 4, hour: 19, minute: 0, enabled: true, subject: null },
+  { id: 5, hour: 21, minute: 30, enabled: true, subject: null }
+];
 
 /**
- * Get the next occurrence of a specific time today or tomorrow
- * @param {number} hour - Hour in 24-hour format (0-23)
- * @param {number} minute - Minute (0-59)
- * @returns {Date} Next occurrence of the specified time
+ * Get a random subject from the list
  */
-export function getNextScheduleTime(hour, minute) {
-  const now = new Date();
-  const scheduleTime = new Date();
-  
-  scheduleTime.setHours(hour, minute, 0, 0);
-  
-  // If the time has already passed today, schedule for tomorrow
-  if (scheduleTime <= now) {
-    scheduleTime.setDate(scheduleTime.getDate() + 1);
-  }
-  
-  return scheduleTime;
-}
-
-/**
- * Calculate seconds until a specific date/time
- * @param {Date} targetDate - Target date/time
- * @returns {number} Seconds until target time
- */
-export function getSecondsUntil(targetDate) {
-  const now = new Date();
-  const diffMs = targetDate.getTime() - now.getTime();
-  return Math.max(0, Math.floor(diffMs / 1000));
-}
-
-/**
- * Format time for display (e.g., "8:30 AM")
- * @param {number} hour - Hour in 24-hour format
- * @param {number} minute - Minute
- * @returns {string} Formatted time string
- */
-export function formatTimeDisplay(hour, minute) {
-  const period = hour >= 12 ? 'PM' : 'AM';
-  const displayHour = hour === 0 ? 12 : hour > 12 ? hour - 12 : hour;
-  const displayMinute = minute.toString().padStart(2, '0');
-  
-  return `${displayHour}:${displayMinute} ${period}`;
-}
-
-/**
- * Save notification times to AsyncStorage
- * @param {Array} notificationTimes - Array of notification time objects
- */
-export async function saveNotificationTimes(notificationTimes) {
-  try {
-    await AsyncStorage.setItem(NOTIFICATION_TIMES_KEY, JSON.stringify(notificationTimes));
-    console.log('Notification times saved:', notificationTimes);
-  } catch (error) {
-    console.error('Error saving notification times:', error);
-    throw error;
-  }
-}
-
-/**
- * Load notification times from AsyncStorage
- * @returns {Array} Array of notification time objects
- */
-export async function loadNotificationTimes() {
-  try {
-    const stored = await AsyncStorage.getItem(NOTIFICATION_TIMES_KEY);
-    if (stored) {
-      const parsed = JSON.parse(stored);
-      console.log('Loaded notification times:', parsed);
-      return parsed;
-    }
-    
-    // Return default times if none stored
-    console.log('Using default notification times');
-    return DEFAULT_NOTIFICATION_TIMES;
-  } catch (error) {
-    console.error('Error loading notification times:', error);
-    return DEFAULT_NOTIFICATION_TIMES;
-  }
-}
-
-/**
- * Validate if a notification time is valid
- * @param {Object} timeObj - Time object with hour and minute
- * @returns {boolean} True if valid
- */
-export function isValidNotificationTime(timeObj) {
-  if (!timeObj || typeof timeObj.hour !== 'number' || typeof timeObj.minute !== 'number') {
-    return false;
-  }
-  
-  return timeObj.hour >= 0 && timeObj.hour <= 23 && 
-         timeObj.minute >= 0 && timeObj.minute <= 59;
-}
-
-/**
- * Get all scheduled notifications for debugging
- * @returns {Array} Array of scheduled notification objects
- */
-export async function getScheduledNotifications() {
-  try {
-    const notifications = await Notifications.getAllScheduledNotificationsAsync();
-    console.log('Currently scheduled notifications:', notifications.length);
-    notifications.forEach((notif, index) => {
-      console.log(`${index + 1}. ID: ${notif.identifier}, Trigger:`, notif.trigger);
-    });
-    return notifications;
-  } catch (error) {
-    console.error('Error getting scheduled notifications:', error);
-    return [];
-  }
-}
-
-/**
- * Calculate the next notification time for display
- * @param {Array} notificationTimes - Array of notification time objects
- * @returns {string} Formatted string of next notification time
- */
-export function getNextNotificationInfo(notificationTimes) {
-  const enabledTimes = notificationTimes.filter(time => time.enabled);
-  
-  if (enabledTimes.length === 0) {
-    return 'No notifications scheduled';
-  }
-  
-  const now = new Date();
-  let nextTime = null;
-  let nextTimeDisplay = '';
-  
-  for (const time of enabledTimes) {
-    const scheduleTime = getNextScheduleTime(time.hour, time.minute);
-    
-    if (!nextTime || scheduleTime < nextTime) {
-      nextTime = scheduleTime;
-      nextTimeDisplay = formatTimeDisplay(time.hour, time.minute);
-    }
-  }
-  
-  if (nextTime) {
-    const isToday = nextTime.toDateString() === now.toDateString();
-    const dayText = isToday ? 'today' : 'tomorrow';
-    return `Next: ${nextTimeDisplay} ${dayText}`;
-  }
-  
-  return 'No notifications scheduled';
-}
-
-/**
- * Check if two notification times conflict (same time)
- * @param {Array} times - Array of notification time objects
- * @returns {boolean} True if there are conflicts
- */
-export function hasTimeConflicts(times) {
-  const enabledTimes = times.filter(time => time.enabled);
-  
-  for (let i = 0; i < enabledTimes.length; i++) {
-    for (let j = i + 1; j < enabledTimes.length; j++) {
-      if (enabledTimes[i].hour === enabledTimes[j].hour && 
-          enabledTimes[i].minute === enabledTimes[j].minute) {
-        return true;
-      }
-    }
-  }
-  
-  return false;
-}
-
-/**
- * Get the next occurrence of a specific time, ensuring it's always in the future
- * This is an alias for getNextScheduleTime but with clearer semantics
- * @param {number} hour - Hour in 24-hour format (0-23)
- * @param {number} minute - Minute (0-59)
- * @returns {Date} Next occurrence of the specified time (always in future)
- */
-export function getNextOccurrence(hour, minute) {
-  return getNextScheduleTime(hour, minute);
+export function getRandomSubject() {
+  const idx = Math.floor(Math.random() * QUIZ_SUBJECTS.length);
+  return QUIZ_SUBJECTS[idx];
 }
 
 /**
  * Cancel all scheduled notifications
- * @returns {Promise<boolean>} True if successful
  */
 export async function cancelAllScheduledNotifications() {
   try {
@@ -210,107 +48,223 @@ export async function cancelAllScheduledNotifications() {
 }
 
 /**
- * Schedule the next daily notification for a specific time slot
- * Never uses repeats:true, always schedules for next valid future occurrence
- * @param {Object} timeSlot - Time slot object with hour, minute, enabled, id
- * @param {Object} notificationContent - Notification content object
- * @returns {Promise<string|null>} Notification ID if successful, null if failed
+ * Load notification slots from storage
  */
-export async function scheduleNextDailyNotification(timeSlot, notificationContent) {
+export async function loadNotificationSlots() {
   try {
-    if (!timeSlot.enabled || !isValidNotificationTime(timeSlot)) {
-      console.log(`Skipping disabled or invalid time slot: ${timeSlot.id}`);
-      return null;
+    const stored = await AsyncStorage.getItem(NOTIFICATION_SLOTS_KEY);
+    if (stored) {
+      return JSON.parse(stored);
     }
+    return DEFAULT_NOTIFICATION_SLOTS;
+  } catch (error) {
+    console.error('Error loading notification slots:', error);
+    return DEFAULT_NOTIFICATION_SLOTS;
+  }
+}
 
-    // Get the next valid future occurrence
-    const nextOccurrence = getNextOccurrence(timeSlot.hour, timeSlot.minute);
-    const secondsUntil = getSecondsUntil(nextOccurrence);
+/**
+ * Save notification slots to storage
+ */
+export async function saveNotificationSlots(slots) {
+  try {
+    await AsyncStorage.setItem(NOTIFICATION_SLOTS_KEY, JSON.stringify(slots));
+    return true;
+  } catch (error) {
+    console.error('Error saving notification slots:', error);
+    return false;
+  }
+}
+
+/**
+ * Schedule notifications for all enabled slots
+ */
+export async function scheduleAllNotificationSlots() {
+  try {
+    await cancelAllScheduledNotifications();
     
-    // Ensure we're not scheduling for immediate execution (unless it's really 'now')
-    if (secondsUntil < 60) {
-      console.log(`Time slot ${timeSlot.id} is too close (${secondsUntil}s), scheduling for tomorrow`);
-      nextOccurrence.setDate(nextOccurrence.getDate() + 1);
-      const newSecondsUntil = getSecondsUntil(nextOccurrence);
-      
-      const notificationId = await Notifications.scheduleNotificationAsync({
-        content: {
-          ...notificationContent,
-          data: {
-            ...notificationContent.data,
-            timeSlot: timeSlot.id,
-            scheduledFor: nextOccurrence.toISOString()
-          }
-        },
-        trigger: {
-          seconds: newSecondsUntil,
-          repeats: false // Never use repeats for daily notifications
-        },
-      });
-      
-      const timeDisplay = formatTimeDisplay(timeSlot.hour, timeSlot.minute);
-      const scheduleDate = nextOccurrence.toLocaleDateString();
-      console.log(`✅ Scheduled notification for ${timeSlot.id} at ${timeDisplay} on ${scheduleDate} (in ${newSecondsUntil} seconds)`);
-      
-      return notificationId;
+    const slots = await loadNotificationSlots();
+    const enabledSlots = slots.filter(slot => slot.enabled);
+    
+    if (enabledSlots.length === 0) {
+      console.log('No enabled notification slots found');
+      return [];
     }
 
-    // Schedule for the calculated time
+    const notificationIds = [];
+    
+    for (const slot of enabledSlots) {
+      const subject = getRandomSubject();
+      const notificationId = await scheduleNotificationForSlot(slot, subject);
+      if (notificationId) {
+        notificationIds.push(notificationId);
+      }
+    }
+    
+    console.log(`📅 Scheduled ${notificationIds.length} notifications for enabled slots`);
+    await getScheduledNotifications();
+    return notificationIds;
+  } catch (error) {
+    console.error('❌ Error scheduling notification slots:', error);
+    return [];
+  }
+}
+
+/**
+ * Schedule a notification for a specific slot
+ */
+async function scheduleNotificationForSlot(slot, subject) {
+  try {
+    const now = new Date();
+    const scheduledTime = new Date();
+    scheduledTime.setHours(slot.hour, slot.minute, 0, 0);
+    
+    // If the time has already passed today, schedule for tomorrow
+    if (scheduledTime <= now) {
+      scheduledTime.setDate(scheduledTime.getDate() + 1);
+    }
+
     const notificationId = await Notifications.scheduleNotificationAsync({
       content: {
-        ...notificationContent,
-        data: {
-          ...notificationContent.data,
-          timeSlot: timeSlot.id,
-          scheduledFor: nextOccurrence.toISOString()
+        title: `Quiz Time: ${subject}!`,
+        body: `Ready for your ${subject} quiz? Tap to start.`,
+        data: { 
+          subject,
+          type: 'daily_quiz',
+          slotId: slot.id,
+          screen: 'QuizScreen'
         }
       },
-      trigger: {
-        seconds: secondsUntil,
-        repeats: false // Never use repeats for daily notifications
-      },
+      trigger: scheduledTime
     });
-    
-    const timeDisplay = formatTimeDisplay(timeSlot.hour, timeSlot.minute);
-    const scheduleDate = nextOccurrence.toLocaleDateString();
-    console.log(`✅ Scheduled notification for ${timeSlot.id} at ${timeDisplay} on ${scheduleDate} (in ${secondsUntil} seconds)`);
-    
+
+    console.log(`📅 Scheduled notification for slot ${slot.id} at ${scheduledTime.toLocaleString()} - ${subject}`);
     return notificationId;
-    
   } catch (error) {
-    console.error(`❌ Error scheduling notification for ${timeSlot.id}:`, error);
+    console.error(`❌ Error scheduling notification for slot ${slot.id}:`, error);
     return null;
   }
 }
 
 /**
- * Schedule all enabled daily notifications, cancelling any existing ones first
- * @param {Array} notificationTimes - Array of notification time objects
- * @param {Function} getNotificationContent - Function that returns notification content for a time slot
- * @returns {Promise<number>} Number of notifications successfully scheduled
+ * Update a specific notification slot
  */
-export async function scheduleAllDailyNotifications(notificationTimes, getNotificationContent) {
+export async function updateNotificationSlot(slotId, updates) {
   try {
-    // Always cancel all existing notifications first
-    await cancelAllScheduledNotifications();
+    const slots = await loadNotificationSlots();
+    const updatedSlots = slots.map(slot => 
+      slot.id === slotId ? { ...slot, ...updates } : slot
+    );
     
-    const enabledTimes = notificationTimes.filter(time => time.enabled);
-    let scheduledCount = 0;
+    await saveNotificationSlots(updatedSlots);
     
-    for (const timeSlot of enabledTimes) {
-      const content = getNotificationContent(timeSlot);
-      const notificationId = await scheduleNextDailyNotification(timeSlot, content);
+    // Reschedule all notifications if any slot was updated
+    await scheduleAllNotificationSlots();
+    
+    return updatedSlots;
+  } catch (error) {
+    console.error('Error updating notification slot:', error);
+    return null;
+  }
+}
+
+/**
+ * Get information about next notifications
+ */
+export async function getNextNotificationsInfo() {
+  try {
+    const slots = await loadNotificationSlots();
+    const enabledSlots = slots.filter(slot => slot.enabled);
+    
+    if (enabledSlots.length === 0) {
+      return 'No notification slots enabled';
+    }
+    
+    const now = new Date();
+    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    
+    // Find next notification today or tomorrow
+    let nextSlot = null;
+    let isToday = true;
+    
+    for (const slot of enabledSlots) {
+      const slotTime = new Date(today);
+      slotTime.setHours(slot.hour, slot.minute, 0, 0);
       
-      if (notificationId) {
-        scheduledCount++;
+      if (slotTime > now) {
+        nextSlot = { ...slot, time: slotTime };
+        break;
       }
     }
     
-    console.log(`📅 Successfully scheduled ${scheduledCount} daily notifications`);
-    return scheduledCount;
+    // If no slot found today, get first slot for tomorrow
+    if (!nextSlot && enabledSlots.length > 0) {
+      const firstSlot = enabledSlots[0];
+      const tomorrow = new Date(today);
+      tomorrow.setDate(tomorrow.getDate() + 1);
+      tomorrow.setHours(firstSlot.hour, firstSlot.minute, 0, 0);
+      
+      nextSlot = { ...firstSlot, time: tomorrow };
+      isToday = false;
+    }
     
+    if (nextSlot) {
+      const timeString = nextSlot.time.toLocaleTimeString('en-US', { 
+        hour: 'numeric', 
+        minute: '2-digit',
+        hour12: true 
+      });
+      const dayString = isToday ? 'today' : 'tomorrow';
+      return `Next: ${timeString} ${dayString} (${enabledSlots.length} slots active)`;
+    }
+    
+    return `${enabledSlots.length} notification slots active`;
   } catch (error) {
-    console.error('❌ Error scheduling daily notifications:', error);
-    return 0;
+    console.error('Error getting next notifications info:', error);
+    return 'Error loading notification info';
+  }
+}
+
+/**
+ * Send a test notification immediately
+ */
+export async function sendTestNotification() {
+  try {
+    const subject = getRandomSubject();
+    await Notifications.scheduleNotificationAsync({
+      content: {
+        title: `Test: ${subject} Quiz! 🔔`,
+        body: 'This is a test notification. Tap to start the quiz!',
+        data: { 
+          subject,
+          type: 'test_quiz',
+          screen: 'QuizScreen'
+        }
+      },
+      trigger: { seconds: 1 }
+    });
+    
+    console.log('� Test notification sent');
+    return true;
+  } catch (error) {
+    console.error('❌ Error sending test notification:', error);
+    return false;
+  }
+}
+
+/**
+ * Debug: Get all scheduled notifications
+ */
+export async function getScheduledNotifications() {
+  try {
+    const notifications = await Notifications.getAllScheduledNotificationsAsync();
+    console.log(`📋 Found ${notifications.length} scheduled notifications:`);
+    notifications.forEach((notif, index) => {
+      console.log(`${index + 1}. ID: ${notif.identifier}, Trigger: ${JSON.stringify(notif.trigger)}`);
+    });
+    return notifications;
+  } catch (error) {
+    console.error('❌ Error getting scheduled notifications:', error);
+    return [];
   }
 }

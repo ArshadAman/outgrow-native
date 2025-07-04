@@ -10,6 +10,7 @@ import SignupScreen from '../screens/SignupScreen';
 import TechDetailScreen from '../screens/TechDetailScreen';
 import TipDetailScreen from '../screens/TipDetailScreen';
 import SavedQuizzesDetail from '../screens/SavedQuizzesDetail';
+import SavedTipsDetail from '../screens/SavedTipsDetail';
 import NotificationSettingsScreen from '../screens/NotificationSettingsScreen';
 import { Text } from 'react-native';
 import * as Notifications from 'expo-notifications';
@@ -111,6 +112,7 @@ export default function AppNavigator() {
       <RootStack.Screen name="TechDetailScreen" component={TechDetailScreen} />
       <RootStack.Screen name="TipDetailScreen" component={TipDetailScreen} />
       <RootStack.Screen name="SavedQuizzesDetail" component={SavedQuizzesDetail} />
+      <RootStack.Screen name="SavedTipsDetail" component={SavedTipsDetail} />
       <RootStack.Screen name="NotificationSettingsScreen" component={NotificationSettingsScreen} />
     </RootStack.Navigator>
   );

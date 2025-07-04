@@ -2,24 +2,22 @@ import React, { useState, useEffect } from 'react';
 import { View, Text, TouchableOpacity, Alert } from 'react-native';
 import { useQuiz } from '../context/QuizContext';
 import { 
-  loadNotificationTimes, 
-  getNextNotificationInfo,
-  getScheduledNotifications 
+  getNextNotificationsInfo,
+  scheduleAllNotificationSlots,
+  sendTestNotification
 } from '../utils/notificationUtils';
 
 /**
- * Example component showing how to use the robust notification scheduling
+ * Example component showing how to use the 5-slot notification system
  * This can be used in any UI component to manage notifications
  */
 export default function NotificationManagementExample() {
   const { 
     notificationsEnabled, 
-    toggleNotifications, 
-    rescheduleNotifications 
+    toggleNotifications
   } = useQuiz();
   
   const [nextNotificationInfo, setNextNotificationInfo] = useState('Loading...');
-  const [scheduledCount, setScheduledCount] = useState(0);
 
   // Load notification status on component mount
   useEffect(() => {
@@ -28,13 +26,12 @@ export default function NotificationManagementExample() {
 
   const loadNotificationStatus = async () => {
     try {
-      const times = await loadNotificationTimes();
-      const info = getNextNotificationInfo(times);
-      setNextNotificationInfo(info);
-
-      // Get count of currently scheduled notifications
-      const scheduled = await getScheduledNotifications();
-      setScheduledCount(scheduled.length);
+      if (notificationsEnabled) {
+        const info = await getNextNotificationsInfo();
+        setNextNotificationInfo(info);
+      } else {
+        setNextNotificationInfo('Notifications disabled');
+      }
     } catch (error) {
       console.error('Error loading notification status:', error);
       setNextNotificationInfo('Error loading status');
@@ -62,7 +59,7 @@ export default function NotificationManagementExample() {
     }
   };
 
-  // Handle manual reschedule (example of rescheduling after notification fires)
+  // Handle manual reschedule
   const handleRescheduleNotifications = async () => {
     try {
       if (!notificationsEnabled) {
@@ -70,10 +67,10 @@ export default function NotificationManagementExample() {
         return;
       }
 
-      const success = await rescheduleNotifications();
-      if (success) {
+      const notificationIds = await scheduleAllNotificationSlots();
+      if (notificationIds.length > 0) {
         await loadNotificationStatus();
-        Alert.alert('Success', 'Notifications rescheduled successfully');
+        Alert.alert('Success', `Rescheduled ${notificationIds.length} notification slots!`);
       } else {
         Alert.alert('Error', 'Failed to reschedule notifications');
       }
@@ -83,10 +80,25 @@ export default function NotificationManagementExample() {
     }
   };
 
+  // Handle test notification
+  const handleSendTestNotification = async () => {
+    try {
+      const success = await sendTestNotification();
+      if (success) {
+        Alert.alert('Test Sent!', 'Check your notifications in a few seconds.');
+      } else {
+        Alert.alert('Error', 'Failed to send test notification');
+      }
+    } catch (error) {
+      console.error('Error sending test notification:', error);
+      Alert.alert('Error', 'Failed to send test notification');
+    }
+  };
+
   return (
     <View style={{ padding: 20, backgroundColor: '#f5f5f5', borderRadius: 10, margin: 10 }}>
       <Text style={{ fontSize: 18, fontWeight: 'bold', marginBottom: 10 }}>
-        📱 Notification Management
+        📱 5-Slot Quiz Notifications
       </Text>
       
       {/* Current Status */}
@@ -94,16 +106,13 @@ export default function NotificationManagementExample() {
         <Text style={{ fontSize: 14, color: '#666', marginBottom: 5 }}>
           Status: {notificationsEnabled ? '✅ Enabled' : '❌ Disabled'}
         </Text>
-        <Text style={{ fontSize: 14, color: '#666', marginBottom: 5 }}>
-          Scheduled: {scheduledCount} notifications
-        </Text>
         <Text style={{ fontSize: 14, color: '#666' }}>
           {nextNotificationInfo}
         </Text>
       </View>
 
       {/* Controls */}
-      <View style={{ flexDirection: 'row', gap: 10 }}>
+      <View style={{ flexDirection: 'row', gap: 10, marginBottom: 10 }}>
         <TouchableOpacity
           style={{
             backgroundColor: notificationsEnabled ? '#dc3545' : '#28a745',
@@ -131,22 +140,37 @@ export default function NotificationManagementExample() {
             onPress={handleRescheduleNotifications}
           >
             <Text style={{ color: 'white', fontWeight: 'bold' }}>
-              Reschedule
+              Reschedule All
             </Text>
           </TouchableOpacity>
         )}
       </View>
 
+      {/* Test Notification Button */}
+      <TouchableOpacity
+        style={{
+          backgroundColor: '#6c757d',
+          padding: 10,
+          borderRadius: 5,
+          alignItems: 'center',
+          marginBottom: 10
+        }}
+        onPress={handleSendTestNotification}
+      >
+        <Text style={{ color: 'white', fontWeight: 'bold' }}>
+          Send Test Notification
+        </Text>
+      </TouchableOpacity>
+
       {/* Info */}
       <Text style={{ 
         fontSize: 12, 
         color: '#888', 
-        marginTop: 10, 
         fontStyle: 'italic' 
       }}>
-        💡 This demonstrates robust daily notification scheduling. 
-        Notifications are always scheduled for future times and automatically 
-        reschedule after firing. Never uses repeats:true for reliability.
+        💡 This demonstrates 5-slot notification scheduling. 
+        Users can customize 5 daily notification times with individual toggle control. 
+        Each notification gets a random quiz subject!
       </Text>
     </View>
   );
@@ -157,26 +181,19 @@ export default function NotificationManagementExample() {
  * This would typically be used in a screen that receives notification navigation
  */
 export function NotificationEventHandlerExample({ route, navigation }) {
-  const { rescheduleNotifications } = useQuiz();
-
   useEffect(() => {
     // Check if this screen was opened from a notification
     if (route?.params?.notificationData) {
-      const { type, timeSlot } = route.params.notificationData;
+      const { type, subject } = route.params.notificationData;
       
-      // If it was a daily quiz notification, the automatic rescheduling
-      // is already handled in QuizContext, but you could add additional
-      // UI feedback here
-      
+      // If it was a daily quiz notification, show feedback
       if (type === 'daily_quiz') {
-        console.log(`Quiz notification received for timeSlot: ${timeSlot}`);
+        console.log(`Quiz notification received for subject: ${subject}`);
         
-        // Optional: Show a toast or update UI to indicate 
-        // that the next notification has been automatically scheduled
         Alert.alert(
           'Quiz Time! 🎓',
-          'Your next quiz notification has been automatically scheduled for tomorrow.',
-          [{ text: 'Got it!' }]
+          `Ready for your ${subject} quiz? The next notification will be scheduled automatically.`,
+          [{ text: 'Let\'s Go!' }]
         );
       }
     }

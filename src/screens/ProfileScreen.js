@@ -13,7 +13,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useQuiz } from "../context/QuizContext";
 import { logout } from "../auth/authService";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { loadNotificationTimes, getNextNotificationInfo } from '../utils/notificationUtils';
+import { getNextNotificationsInfo } from '../utils/notificationUtils';
 
 export default function ProfileScreen({ navigation }) {
   const { 
@@ -40,9 +40,12 @@ export default function ProfileScreen({ navigation }) {
 
   const loadNotificationInfo = async () => {
     try {
-      const times = await loadNotificationTimes();
-      const info = getNextNotificationInfo(times);
-      setNextNotificationInfo(info);
+      if (notificationsEnabled) {
+        const info = await getNextNotificationsInfo();
+        setNextNotificationInfo(info);
+      } else {
+        setNextNotificationInfo('Disabled - no quiz reminders');
+      }
     } catch (error) {
       console.error('Error loading notification info:', error);
       setNextNotificationInfo('Error loading schedule');
@@ -317,21 +320,6 @@ export default function ProfileScreen({ navigation }) {
                 </Text>
               </View>
               <Ionicons name="chevron-forward" size={20} color="#a2afb3" />
-            </TouchableOpacity>
-
-            {/* Test Notifications */}
-            <TouchableOpacity 
-              className="p-5 border-b border-[#232D3F] active:bg-[#232D3F]"
-              onPress={handleTestNotification}
-            >
-              <View className="flex-row items-center mb-1">
-                <Text className="text-white text-base font-semibold">Test Notifications</Text>
-                <View className="ml-2 w-2 h-2 bg-[#ff9500] rounded-full" />
-                <Text className="text-[#a2afb3] ml-auto text-lg">🔔</Text>
-              </View>
-              <Text className="text-[#a2afb3] text-sm">
-                Send a test quiz notification immediately
-              </Text>
             </TouchableOpacity>
 
             {/* Other Settings */}
