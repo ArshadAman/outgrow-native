@@ -35,7 +35,10 @@ yarn-error.*
 
 # typescript
 *.tsbuildinfo
-/utils
-/navigation/
-/components/
-screen/
+
+# Test and demo files
+test*.js
+demo*.js
+
+# Temporary files
+/tmp/
