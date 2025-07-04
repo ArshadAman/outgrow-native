@@ -9,9 +9,11 @@ import {
   Switch,
 } from "react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import { Ionicons } from '@expo/vector-icons';
 import { useQuiz } from "../context/QuizContext";
 import { logout } from "../auth/authService";
 import { SafeAreaView } from "react-native-safe-area-context";
+import { loadNotificationTimes, getNextNotificationInfo } from '../utils/notificationUtils';
 
 export default function ProfileScreen({ navigation }) {
   const { 
@@ -29,10 +31,23 @@ export default function ProfileScreen({ navigation }) {
   });
   const [darkMode, setDarkMode] = useState(true);
   const [loading, setLoading] = useState(true);
+  const [nextNotificationInfo, setNextNotificationInfo] = useState('Loading...');
 
   useEffect(() => {
     loadUserData();
-  }, []);
+    loadNotificationInfo();
+  }, [notificationsEnabled]);
+
+  const loadNotificationInfo = async () => {
+    try {
+      const times = await loadNotificationTimes();
+      const info = getNextNotificationInfo(times);
+      setNextNotificationInfo(info);
+    } catch (error) {
+      console.error('Error loading notification info:', error);
+      setNextNotificationInfo('Error loading schedule');
+    }
+  };
 
   const loadUserData = async () => {
     try {
@@ -273,10 +288,10 @@ export default function ProfileScreen({ navigation }) {
               <View className="flex-1">
                 <View className="flex-row items-center mb-1">
                   <Text className="text-white text-base font-semibold">Quiz Notifications</Text>
-                  <View className="ml-2 w-2 h-2 bg-[#34c759] rounded-full" />
+                  <View className={`ml-2 w-2 h-2 rounded-full ${notificationsEnabled ? 'bg-[#34c759]' : 'bg-[#3b4e54]'}`} />
                 </View>
                 <Text className="text-[#a2afb3] text-sm">
-                  Receive daily quiz reminders with random subjects
+                  {notificationsEnabled ? nextNotificationInfo : 'Disabled - no quiz reminders'}
                 </Text>
               </View>
               <Switch
@@ -286,6 +301,23 @@ export default function ProfileScreen({ navigation }) {
                 thumbColor="#fff"
               />
             </View>
+
+            {/* Notification Settings */}
+            <TouchableOpacity 
+              className="flex-row justify-between items-center p-5 border-b border-[#232D3F] active:bg-[#232D3F]"
+              onPress={() => navigation.navigate('NotificationSettingsScreen')}
+            >
+              <View className="flex-1">
+                <View className="flex-row items-center mb-1">
+                  <Text className="text-white text-base font-semibold">Notification Schedule</Text>
+                  <View className="ml-2 w-2 h-2 bg-[#0cb9f2] rounded-full" />
+                </View>
+                <Text className="text-[#a2afb3] text-sm">
+                  Customize your notification times and preferences
+                </Text>
+              </View>
+              <Ionicons name="chevron-forward" size={20} color="#a2afb3" />
+            </TouchableOpacity>
 
             {/* Test Notifications */}
             <TouchableOpacity 

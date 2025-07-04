@@ -10,6 +10,7 @@ import SignupScreen from '../screens/SignupScreen';
 import TechDetailScreen from '../screens/TechDetailScreen';
 import TipDetailScreen from '../screens/TipDetailScreen';
 import SavedQuizzesDetail from '../screens/SavedQuizzesDetail';
+import NotificationSettingsScreen from '../screens/NotificationSettingsScreen';
 import { Text } from 'react-native';
 import * as Notifications from 'expo-notifications';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -25,16 +26,6 @@ function QuizStack() {
     <Stack.Navigator screenOptions={{ headerShown: false }}>
       <Stack.Screen name="QuizMain" component={QuizScreen} />
       {/* We could add QuizResultScreen here later */}
-    </Stack.Navigator>
-  );
-}
-
-// Stack for Tips flow
-function TipsStack() {
-  return (
-    <Stack.Navigator screenOptions={{ headerShown: false }}>
-      <Stack.Screen name="TipsMain" component={TipScreen} />
-      {/* TechDetailScreen and TipDetailScreen moved to the root navigator */}
     </Stack.Navigator>
   );
 }
@@ -120,6 +111,7 @@ export default function AppNavigator() {
       <RootStack.Screen name="TechDetailScreen" component={TechDetailScreen} />
       <RootStack.Screen name="TipDetailScreen" component={TipDetailScreen} />
       <RootStack.Screen name="SavedQuizzesDetail" component={SavedQuizzesDetail} />
+      <RootStack.Screen name="NotificationSettingsScreen" component={NotificationSettingsScreen} />
     </RootStack.Navigator>
   );
 }
