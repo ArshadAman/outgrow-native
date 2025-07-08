@@ -100,3 +100,6 @@ Quizzes are generated using the Google Gemini API with carefully crafted prompts
 
 ### Thanks, please check Releases tab for the lastest apk.
 
+### Local build command if you have android sdk installed
+> eas build --platform android --profile apk --local                                                                                                          
+
