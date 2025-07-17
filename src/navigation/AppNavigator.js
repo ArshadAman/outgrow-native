@@ -12,6 +12,10 @@ import TipDetailScreen from '../screens/TipDetailScreen';
 import SavedQuizzesDetail from '../screens/SavedQuizzesDetail';
 import SavedTipsDetail from '../screens/SavedTipsDetail';
 import NotificationSettingsScreen from '../screens/NotificationSettingsScreen';
+import DailyFeedScreen from '../screens/DailyFeedScreen';
+import TechStackScreen from '../screens/TechStackScreen';
+import ProjectLibraryScreen from '../screens/ProjectLibraryScreen';
+import LeaderboardScreen from '../screens/LeaderboardScreen';
 import { Text } from 'react-native';
 import * as Notifications from 'expo-notifications';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -60,6 +64,15 @@ function MainTabs() {
         }}
       />
       <Tab.Screen
+        name="DailyFeed"
+        component={DailyFeedScreen}
+        options={{
+          tabBarIcon: ({ color, focused }) => (
+            <MaterialCommunityIcons name={focused ? 'calendar-today' : 'calendar-today-outline'} size={24} color={color} />
+          ),
+        }}
+      />
+      <Tab.Screen
         name="Quiz"
         component={QuizStack}
         options={{
@@ -69,11 +82,11 @@ function MainTabs() {
         }}
       />
       <Tab.Screen
-        name="Saved"
-        component={SavedScreen}
+        name="TechStack"
+        component={TechStackScreen}
         options={{
           tabBarIcon: ({ color, focused }) => (
-            <FontAwesome5 name={focused ? 'bookmark' : 'bookmark'} solid={focused} size={22} color={color} />
+            <MaterialCommunityIcons name={focused ? 'tools' : 'tools'} size={24} color={color} />
           ),
         }}
       />

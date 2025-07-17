@@ -16,7 +16,7 @@ import {
 } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { signupSchema } from '../utils/validation';
-import { register } from '../auth/authService';
+import { signUp } from '../auth/authService';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { StyleSheet, Dimensions } from 'react-native';
 
@@ -36,7 +36,7 @@ const SYMBOL_AREA_WIDTH = 350;
 export default function SignupScreen({ navigation }) {
   const separatorRef = useRef(null);
   const googleBtnRef = useRef(null);
-  const [values, setValues] = useState({ username: '', password: '', confirmPassword: '' });
+  const [values, setValues] = useState({ name: '', email: '', password: '', confirmPassword: '' });
   const [errors, setErrors] = useState({});
   const [loading, setLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
@@ -225,12 +225,7 @@ export default function SignupScreen({ navigation }) {
       await signupSchema.validate(values, { abortEarly: false });
       setLoading(true);
       try {
-        const userData = {
-          username: values.username,
-          password: values.password,
-          email: `${values.username}@example.com`,
-        };
-        const result = await register(userData);
+        await signUp(values.email, values.password, values.name);
         Alert.alert('Signup Success', 'Account created!');
         navigation.navigate('LoginScreen');
       } catch (apiError) {
@@ -389,23 +384,43 @@ export default function SignupScreen({ navigation }) {
               <Text style={{ marginHorizontal: 12, color: '#7e8a9a', fontSize: 14, fontWeight: '500' }}>or</Text>
               <View style={{ flex: 1, height: 1, backgroundColor: '#232D3F', opacity: 0.6 }} />
             </View>
-            {/* Username Field */}
+            {/* Name Field */}
             <View style={{ marginBottom: 16, marginHorizontal: 18 }}>
               <View style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: '#232D3F', borderRadius: 10, paddingHorizontal: 12, borderWidth: 1, borderColor: '#2c3335' }}>
                 <Ionicons name="person-outline" size={20} color="#7e8a9a" style={{ marginRight: 8 }} />
                 <TextInput
                   style={{ flex: 1, height: 48, color: '#fff', fontSize: 16 }}
                   placeholderTextColor="#7e8a9a"
-                  placeholder="Username"
-                  value={values.username}
-                  onChangeText={v => handleChange('username', v)}
-                  autoCapitalize="none"
+                  placeholder="Name"
+                  value={values.name}
+                  onChangeText={v => handleChange('name', v)}
+                  autoCapitalize="words"
                   returnKeyType="next"
                   selectionColor="#0cb9f2"
                 />
               </View>
-              {errors.username ? (
-                <Text style={{ color: '#ff5a5f', fontSize: 13, marginTop: 2, marginLeft: 4 }}>{errors.username}</Text>
+              {errors.name ? (
+                <Text style={{ color: '#ff5a5f', fontSize: 13, marginTop: 2, marginLeft: 4 }}>{errors.name}</Text>
+              ) : null}
+            </View>
+            {/* Email Field */}
+            <View style={{ marginBottom: 16, marginHorizontal: 18 }}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: '#232D3F', borderRadius: 10, paddingHorizontal: 12, borderWidth: 1, borderColor: '#2c3335' }}>
+                <MaterialCommunityIcons name="email-outline" size={20} color="#7e8a9a" style={{ marginRight: 8 }} />
+                <TextInput
+                  style={{ flex: 1, height: 48, color: '#fff', fontSize: 16 }}
+                  placeholderTextColor="#7e8a9a"
+                  placeholder="Email"
+                  value={values.email}
+                  onChangeText={v => handleChange('email', v)}
+                  autoCapitalize="none"
+                  keyboardType="email-address"
+                  returnKeyType="next"
+                  selectionColor="#0cb9f2"
+                />
+              </View>
+              {errors.email ? (
+                <Text style={{ color: '#ff5a5f', fontSize: 13, marginTop: 2, marginLeft: 4 }}>{errors.email}</Text>
               ) : null}
             </View>
             {/* Password Field */}

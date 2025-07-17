@@ -9,29 +9,31 @@ import {
 } from "react-native";
 import { useQuiz } from "../context/QuizContext";
 import Timer from "../components/Timer";
-import AsyncStorage from "@react-native-async-storage/async-storage";
+import { getSavedQuizzes, setSavedQuizzes } from '../services/SavedContentService';
+import { useAuth } from '../auth/AuthContext';
 import { Ionicons } from "@expo/vector-icons";
 import { SafeAreaView } from "react-native-safe-area-context";
 
-export default function QuizScreen({ route, navigation }) {
-  const {
-    currentQuiz,
-    isLoading,
-    currentQuestion,
-    selectedAnswers,
-    timerDuration,
-    quizFinished,
-    fetchQuiz,
-    startQuiz,
-    submitAnswer,
-    finishQuiz,
-  } = useQuiz();
-
-  const [selected, setSelected] = useState(null);
-  const [showResults, setShowResults] = useState(false);
-  const [score, setScore] = useState(0);
-  const [quizStarted, setQuizStarted] = useState(false);
-  const [savedQuizzes, setSavedQuizzes] = useState({});
+  const QuizScreen = ({ navigation, route }) => {
+    const {
+      currentQuiz,
+      isLoading,
+      currentQuestion,
+      selectedAnswers,
+      timerDuration,
+      quizFinished,
+      fetchQuiz,
+      startQuiz,
+      submitAnswer,
+      finishQuiz,
+    } = useQuiz();
+  
+    const { user } = useAuth();
+    const [selected, setSelected] = useState(null);
+    const [showResults, setShowResults] = useState(false);
+    const [score, setScore] = useState(0);
+    const [quizStarted, setQuizStarted] = useState(false);
+    const [savedQuizzes, setSavedQuizzesState] = useState({});
 
   // Check for auto-start subject from notification
   useEffect(() => {
@@ -46,8 +48,7 @@ export default function QuizScreen({ route, navigation }) {
           // Clear the parameter to prevent re-triggering
           navigation.setParams({ autoStartSubject: undefined });
         } catch (error) {
-          console.error('Error auto-starting quiz:', error);
-        }
+        };
       }
     };
     
@@ -211,23 +212,16 @@ export default function QuizScreen({ route, navigation }) {
     ]);
   };
 
-  // Add this useEffect to load saved quizzes
+  // Load saved quizzes from local/Firestore
   useEffect(() => {
-    loadSavedQuizzes();
-  }, []);
-
-  // Add these new functions
-  const loadSavedQuizzes = async () => {
-    try {
-      const saved = await AsyncStorage.getItem("saved_quizzes");
-      if (saved) {
-        setSavedQuizzes(JSON.parse(saved));
-      }
-    } catch (error) {
-      console.error("Error loading saved quizzes:", error);
+    if (user) {
+      getSavedQuizzes(user.email || '').then((saved) => {
+        setSavedQuizzesState(saved);
+      });
     }
-  };
+  }, [user]);
 
+  // Save/unsave quiz to local/Firestore
   const toggleSaveQuiz = async (questionIndex) => {
     try {
       const question = currentQuiz.questions[questionIndex];
@@ -248,11 +242,8 @@ export default function QuizScreen({ route, navigation }) {
         };
       }
 
-      await AsyncStorage.setItem(
-        "saved_quizzes",
-        JSON.stringify(newSavedQuizzes)
-      );
-      setSavedQuizzes(newSavedQuizzes);
+      await setSavedQuizzes(user.email || '', newSavedQuizzes);
+      setSavedQuizzesState(newSavedQuizzes);
     } catch (error) {
       console.error("Error saving quiz:", error);
     }

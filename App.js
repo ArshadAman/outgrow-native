@@ -5,6 +5,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import './global.css';
 import AppNavigator from './src/navigation/AppNavigator';
 import { QuizProvider } from './src/context/QuizContext';
+import { AuthProvider } from './src/auth/AuthContext';
 import * as Notifications from 'expo-notifications';
 
 export default function App() {
@@ -59,12 +60,14 @@ export default function App() {
   }, []);
 
   return (
-    <QuizProvider>
-      <NavigationContainer ref={navigationRef}>
-        {/* Using dark-content for black status bar text/icons on white background */}
-        <StatusBar style="dark-content" backgroundColor="#ffffff" />
-        <AppNavigator />
-      </NavigationContainer>
-    </QuizProvider>
+    <AuthProvider>
+      <QuizProvider>
+        <NavigationContainer ref={navigationRef}>
+          {/* Using dark-content for black status bar text/icons on white background */}
+          <StatusBar style="dark-content" backgroundColor="#ffffff" />
+          <AppNavigator />
+        </NavigationContainer>
+      </QuizProvider>
+    </AuthProvider>
   );
 }

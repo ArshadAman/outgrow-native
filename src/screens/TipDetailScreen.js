@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from "react";
 import { View, Text, ScrollView, TouchableOpacity, Image, Alert } from "react-native";
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { getSavedTips, setSavedTips } from '../services/SavedContentService';
+import { useAuth } from '../auth/AuthContext';
 import { FULL_TIP_CONTENT, RELATED_TECH } from "../config/tipData";
 import { SafeAreaView } from "react-native-safe-area-context";
 
@@ -53,9 +55,9 @@ function renderMarkdownWithCodeBlocks(text) {
 export default function TipDetailScreen({ route, navigation }) {
   // Get tip info from route params
   const { tipTitle, customTip, customTech, fromTechDetail } = route.params || {};
-  
+  const { user } = useAuth();
   // State for managing saved tips
-  const [savedTips, setSavedTips] = useState({});
+  const [savedTips, setSavedTipsState] = useState({});
   const [isLoading, setIsLoading] = useState(true);
   
   let tip, tech;
@@ -126,7 +128,7 @@ export default function TipDetailScreen({ route, navigation }) {
   // If we don't have tip data, show a fallback UI
   if (!tip || !tech) {
     return (
-      <View className="flex-1 bg-[#111618]">
+      <SafeAreaView className="flex-1 bg-[#111618]">
         <View className="flex-row items-center bg-[#111618] p-4 pb-2">
           <TouchableOpacity onPress={() => navigation.goBack()} className="pr-4">
             <Text className="text-[#0cb9f2] text-2xl">←</Text>
@@ -141,13 +143,13 @@ export default function TipDetailScreen({ route, navigation }) {
             onPress={() => navigation.goBack()}
             className="mt-6 bg-[#0cb9f2] py-3 px-6 rounded-full"
           >
-            <Text className="text-white font-semibold">Go Back</Text>
+            <Text className="text-white text-base">Go Back</Text>
           </TouchableOpacity>
         </View>
-      </View>
+      </SafeAreaView>
     );
   }
-  
+
   return (
     <SafeAreaView className="flex-1 bg-[#111618]">
       <View className="flex-row items-center bg-[#111618] p-4 pb-2">
@@ -155,11 +157,6 @@ export default function TipDetailScreen({ route, navigation }) {
           <Text className="text-[#0cb9f2] text-2xl">←</Text>
         </TouchableOpacity>
         <Text className="text-white text-lg font-bold flex-1 text-center">Tip Blog</Text>
-        {tip && tech && (
-          <TouchableOpacity onPress={toggleSaveTip} className="pl-4">
-            <Text className="text-2xl">{isSaved ? '❤️' : '🤍'}</Text>
-          </TouchableOpacity>
-        )}
       </View>
       <ScrollView className="flex-1 px-4 pt-2 pb-8">
         <View className="bg-[#181F2A] rounded-2xl p-6 shadow-lg mb-6">
@@ -178,8 +175,6 @@ export default function TipDetailScreen({ route, navigation }) {
             </View>
           </View>
           {renderMarkdownWithCodeBlocks(tip?.desc)}
-          
-          {/* Save Action Button */}
           {tip && tech && (
             <TouchableOpacity
               onPress={toggleSaveTip}

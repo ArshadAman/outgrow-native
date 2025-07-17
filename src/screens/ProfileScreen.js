@@ -256,6 +256,37 @@ export default function ProfileScreen({ navigation }) {
           </View>
         </View>
 
+        {/* Quick Access Section */}
+        <View className="px-6 py-2">
+          <Text className="text-white text-xl font-bold mb-4">Your Library</Text>
+          <View className="flex-row flex-wrap gap-4">
+            <TouchableOpacity
+              className="flex-1 min-w-[110px] bg-[#181F2A] rounded-2xl p-4 items-center border border-[#232D3F]"
+              style={{ maxWidth: '48%' }}
+              onPress={() => navigation.navigate('SavedScreen')}
+            >
+              <Ionicons name="bookmark" size={28} color="#0cb9f2" />
+              <Text className="text-white text-base font-semibold mt-2">Saved</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              className="flex-1 min-w-[110px] bg-[#181F2A] rounded-2xl p-4 items-center border border-[#232D3F]"
+              style={{ maxWidth: '48%' }}
+              onPress={() => navigation.navigate('LeaderboardScreen')}
+            >
+              <Ionicons name="trophy" size={28} color="#ffd700" />
+              <Text className="text-white text-base font-semibold mt-2">Leaderboard</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              className="flex-1 min-w-[110px] bg-[#181F2A] rounded-2xl p-4 items-center border border-[#232D3F]"
+              style={{ maxWidth: '48%' }}
+              onPress={() => navigation.navigate('ProjectLibraryScreen')}
+            >
+              <Ionicons name="folder" size={28} color="#7e8a9a" />
+              <Text className="text-white text-base font-semibold mt-2">Projects</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+
         {/* Settings Section */}
         <View className="px-6 py-6">
           <Text className="text-white text-xl font-bold mb-4">Settings</Text>

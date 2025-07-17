@@ -1,58 +1,63 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { loginUser, registerUser, getUserProfile } from '../api/authApi';
+import { auth, db } from '../services/FirebaseService';
+import { createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut, GoogleAuthProvider, signInWithCredential } from 'firebase/auth';
+import { doc, setDoc, getDoc } from 'firebase/firestore';
+import * as Google from 'expo-auth-session/providers/google';
 
-/**
- * Handle user login
- * @param {string} username - The username
- * @param {string} password - The password
- * @returns {Promise<Object>} - User data
- */
-export const login = async (username, password) => {
+// Email/password signup
+export const signUp = async (email, password, displayName = '') => {
   try {
-    // Call the API
-    const userData = await loginUser(username, password);
-    
-    // Store auth token and user data
-    if (userData.token) {
-      await AsyncStorage.setItem('token', userData.token);
-    } else {
-      // For demo purposes, create a mock token if none exists
-      await AsyncStorage.setItem('token', `mock-token-${Date.now()}`);
-    }
-    
-    await AsyncStorage.setItem('user_data', JSON.stringify({
-      username: userData.username || username,
-      email: userData.email || 'user@example.com',
-      joinDate: new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long' }),
-      avatar: userData.image || 'https://ui-avatars.com/api/?name=' + encodeURIComponent(username) + '&background=0D8ABC&color=fff'
-    }));
-    
-    return userData;
+    const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+    const user = userCredential.user;
+    // Save user profile in Firestore
+    await setDoc(doc(db, 'users', user.uid), {
+      email: user.email,
+      displayName: displayName || user.email,
+      joinDate: new Date().toISOString(),
+      avatar: user.photoURL || '',
+    }, { merge: true });
+    return user;
+  } catch (error) {
+    console.error('Signup error:', error);
+    throw error;
+  }
+};
+
+// Email/password login
+export const login = async (email, password) => {
+  try {
+    const userCredential = await signInWithEmailAndPassword(auth, email, password);
+    const user = userCredential.user;
+    // Optionally fetch user profile from Firestore
+    const userDoc = await getDoc(doc(db, 'users', user.uid));
+    return { ...user, ...userDoc.data() };
   } catch (error) {
     console.error('Login error:', error);
     throw error;
   }
 };
 
-/**
- * Handle user registration
- * @param {Object} userData - User registration data
- * @returns {Promise<Object>} - Registered user data
- */
-export const register = async (userData) => {
+// Google login (Expo)
+export const loginWithGoogle = async (idToken, accessToken) => {
   try {
-    // Call the API
-    const result = await registerUser(userData);
-    
-    // For demo purposes, we don't need to store any token on registration
-    // as users should log in afterwards
-    
-    return result;
+    const credential = GoogleAuthProvider.credential(idToken, accessToken);
+    const userCredential = await signInWithCredential(auth, credential);
+    const user = userCredential.user;
+    // Save user profile in Firestore
+    await setDoc(doc(db, 'users', user.uid), {
+      email: user.email,
+      displayName: user.displayName || user.email,
+      joinDate: new Date().toISOString(),
+      avatar: user.photoURL || '',
+    }, { merge: true });
+    return user;
   } catch (error) {
-    console.error('Registration error:', error);
+    console.error('Google login error:', error);
     throw error;
   }
 };
+
+// Deprecated: register function (use signUp instead)
 
 /**
  * Check if user is authenticated

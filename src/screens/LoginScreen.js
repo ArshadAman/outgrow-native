@@ -17,7 +17,9 @@ import {
 } from "react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { loginSchema } from "../utils/validation";
-import { login } from "../auth/authService";
+import { login, loginWithGoogle } from "../auth/authService";
+import * as Google from 'expo-auth-session/providers/google';
+import * as WebBrowser from 'expo-web-browser';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { StyleSheet } from 'react-native';
 
@@ -50,7 +52,7 @@ const SOCIALS = [
 ];
 
 export default function LoginScreen({ navigation }) {
-  const [values, setValues] = useState({ username: "", password: "" });
+  const [values, setValues] = useState({ email: "", password: "" });
   const [errors, setErrors] = useState({});
   const [loading, setLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
@@ -208,18 +210,24 @@ export default function LoginScreen({ navigation }) {
     setErrors({ ...errors, [field]: undefined });
   };
 
+  WebBrowser.maybeCompleteAuthSession();
+  const [request, response, promptAsync] = Google.useAuthRequest({
+    expoClientId: 'YOUR_EXPO_CLIENT_ID.apps.googleusercontent.com',
+    iosClientId: 'YOUR_IOS_CLIENT_ID.apps.googleusercontent.com',
+    androidClientId: 'YOUR_ANDROID_CLIENT_ID.apps.googleusercontent.com',
+    webClientId: 'YOUR_WEB_CLIENT_ID.apps.googleusercontent.com',
+  });
+
   const handleLogin = async () => {
     try {
       await loginSchema.validate(values, { abortEarly: false });
       setLoading(true);
-
       try {
-        const userData = await login(values.username, values.password);
+        const userData = await login(values.email, values.password);
         navigation.replace("MainTabs");
       } catch (apiError) {
         Alert.alert("Login Failed", apiError.message || "Invalid credentials");
       }
-
       setLoading(false);
     } catch (err) {
       setLoading(false);
@@ -234,6 +242,15 @@ export default function LoginScreen({ navigation }) {
       }
     }
   };
+
+  useEffect(() => {
+    if (response?.type === 'success') {
+      const { id_token, access_token } = response.params;
+      loginWithGoogle(id_token, access_token)
+        .then(() => navigation.replace("MainTabs"))
+        .catch((err) => Alert.alert("Google Login Failed", err.message || "Unable to login with Google"));
+    }
+  }, [response]);
 
   return (
     <View style={{ flex: 1, backgroundColor: '#111618' }}>
@@ -315,24 +332,24 @@ export default function LoginScreen({ navigation }) {
               <View style={{ flex: 1, height: 1, backgroundColor: '#232D3F' }} />
             </View>
 
-            {/* Username Field */}
+            {/* Email Field */}
             <View style={{ marginBottom: 16, marginHorizontal: 18 }}>
               <View style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: '#232D3F', borderRadius: 10, paddingHorizontal: 12, borderWidth: 1, borderColor: '#2c3335' }}>
-                <Ionicons name="person-outline" size={20} color="#7e8a9a" style={{ marginRight: 8 }} />
+                <Ionicons name="mail-outline" size={20} color="#7e8a9a" style={{ marginRight: 8 }} />
                 <TextInput
                   style={{ flex: 1, height: 48, color: '#fff', fontSize: 16 }}
                   placeholderTextColor="#7e8a9a"
-                  placeholder="Username or Email"
-                  value={values.username}
-                  onChangeText={(v) => handleChange("username", v)}
+                  placeholder="Email"
+                  value={values.email}
+                  onChangeText={(v) => handleChange("email", v)}
                   autoCapitalize="none"
                   keyboardType="email-address"
                   returnKeyType="next"
                   selectionColor="#0cb9f2"
                 />
               </View>
-              {errors.username ? (
-                <Text style={{ color: '#ff5a5f', fontSize: 13, marginTop: 2, marginLeft: 4 }}>{errors.username}</Text>
+              {errors.email ? (
+                <Text style={{ color: '#ff5a5f', fontSize: 13, marginTop: 2, marginLeft: 4 }}>{errors.email}</Text>
               ) : null}
             </View>
 
