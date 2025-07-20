@@ -8,30 +8,42 @@ const AuthContext = createContext({
   user: null,
   setUser: () => {},
   loading: true,
+  refreshUser: () => {},
 });
 
 export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    // On mount, check if user is logged in and load user data
-    const loadUser = async () => {
-      setLoading(true);
-      const authed = await isAuthenticated();
-      if (authed) {
-        const userData = await AsyncStorage.getItem('user_data');
-        setUser(userData ? JSON.parse(userData) : null);
+  const loadUser = async () => {
+    setLoading(true);
+    try {
+      const userData = await AsyncStorage.getItem('user_data');
+      if (userData) {
+        const parsedUser = JSON.parse(userData);
+        console.log('AuthContext loaded user data:', parsedUser);
+        setUser(parsedUser);
       } else {
+        console.log('No user data found in AsyncStorage');
         setUser(null);
       }
-      setLoading(false);
-    };
+    } catch (error) {
+      console.error('Error loading user data:', error);
+      setUser(null);
+    }
+    setLoading(false);
+  };
+
+  const refreshUser = () => {
+    loadUser();
+  };
+
+  useEffect(() => {
     loadUser();
   }, []);
 
   return (
-    <AuthContext.Provider value={{ user, setUser, loading }}>
+    <AuthContext.Provider value={{ user, setUser, loading, refreshUser }}>
       {children}
     </AuthContext.Provider>
   );

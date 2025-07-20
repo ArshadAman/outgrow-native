@@ -5,6 +5,7 @@ import { getSavedTips, setSavedTips } from '../services/SavedContentService';
 import { useAuth } from '../auth/AuthContext';
 import { FULL_TIP_CONTENT, RELATED_TECH } from "../config/tipData";
 import { SafeAreaView } from "react-native-safe-area-context";
+import { Ionicons } from '@expo/vector-icons';
 
 function renderMarkdownWithCodeBlocks(text) {
   // Handle null or undefined text
@@ -59,6 +60,7 @@ export default function TipDetailScreen({ route, navigation }) {
   // State for managing saved tips
   const [savedTips, setSavedTipsState] = useState({});
   const [isLoading, setIsLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
   
   let tip, tech;
   
@@ -88,7 +90,7 @@ export default function TipDetailScreen({ route, navigation }) {
     try {
       const saved = await AsyncStorage.getItem('saved_tips');
       if (saved) {
-        setSavedTips(JSON.parse(saved));
+        setSavedTipsState(JSON.parse(saved));
       }
     } catch (error) {
       console.error('Error loading saved tips:', error);
@@ -98,13 +100,12 @@ export default function TipDetailScreen({ route, navigation }) {
   };
 
   const toggleSaveTip = async () => {
+    setSaving(true);
     try {
       const newSavedTips = { ...savedTips };
-
       if (newSavedTips[tipKey]) {
         // Remove from saved
         delete newSavedTips[tipKey];
-        Alert.alert('Tip Removed', 'This tip has been removed from your saved collection.');
       } else {
         // Add to saved
         newSavedTips[tipKey] = {
@@ -114,14 +115,14 @@ export default function TipDetailScreen({ route, navigation }) {
           category: tech.name, // Use tech name as the category
           timestamp: new Date().toISOString(),
         };
-        Alert.alert('Tip Saved!', 'This tip has been added to your saved collection.');
       }
-
-      await AsyncStorage.setItem('saved_tips', JSON.stringify(newSavedTips));
-      setSavedTips(newSavedTips);
+      // Save to Firestore and local
+      await setSavedTips(user.uid, newSavedTips);
+      setSavedTipsState(newSavedTips);
     } catch (error) {
       console.error('Error saving tip:', error);
-      Alert.alert('Error', 'Failed to save tip. Please try again.');
+    } finally {
+      setSaving(false);
     }
   };
   
@@ -176,17 +177,41 @@ export default function TipDetailScreen({ route, navigation }) {
           </View>
           {renderMarkdownWithCodeBlocks(tip?.desc)}
           {tip && tech && (
-            <TouchableOpacity
-              onPress={toggleSaveTip}
-              className={`mt-6 py-3 px-6 rounded-full flex-row items-center justify-center ${
-                isSaved ? 'bg-red-500' : 'bg-[#0cb9f2]'
-              }`}
-            >
-              <Text className="text-white font-semibold text-base mr-2">
-                {isSaved ? 'Remove from Saved' : 'Save This Tip'}
-              </Text>
-              <Text className="text-white text-lg">{isSaved ? '💔' : '💾'}</Text>
-            </TouchableOpacity>
+            <View className="flex-row items-center justify-end mt-6">
+              <TouchableOpacity
+                onPress={toggleSaveTip}
+                className="p-2 rounded-full"
+                style={{ backgroundColor: isSaved ? '#0cb9f2' : '#232D3F' }}
+                disabled={saving}
+              >
+                <Ionicons
+                  name={isSaved ? 'bookmark' : 'bookmark-outline'}
+                  size={28}
+                  color={isSaved ? '#fff' : '#a2afb3'}
+                />
+              </TouchableOpacity>
+            </View>
+          )}
+          {saving && (
+            <View style={{
+              position: 'absolute',
+              top: 0,
+              left: 0,
+              right: 0,
+              bottom: 0,
+              backgroundColor: 'rgba(20,24,30,0.55)',
+              justifyContent: 'center',
+              alignItems: 'center',
+              zIndex: 10,
+              borderRadius: 18
+            }}>
+              <View style={{ backgroundColor: '#232D3F', padding: 24, borderRadius: 16, opacity: 0.95 }}>
+                <Text style={{ color: '#0cb9f2', fontSize: 22, fontWeight: 'bold', textAlign: 'center', marginBottom: 10 }}>Saving...</Text>
+                <View style={{ alignItems: 'center' }}>
+                  <Ionicons name="refresh" size={36} color="#0cb9f2" style={{ transform: [{ rotate: '0deg' }] }} />
+                </View>
+              </View>
+            </View>
           )}
         </View>
       </ScrollView>

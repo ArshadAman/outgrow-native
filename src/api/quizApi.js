@@ -24,7 +24,7 @@ export async function fetchQuizFromGemini(subject) {
     Make sure the questions are challenging but appropriate for computer science students.`;
 
     const response = await fetch(
-      "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-:generateContent?key=" + GEMINI_API_KEY,
+      "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=" + GEMINI_API_KEY,
       {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -35,45 +35,64 @@ export async function fetchQuizFromGemini(subject) {
     );
 
     const data = await response.json();
-    
+    // Log the full Gemini API response for debugging
+    console.log('[quizApi] Full Gemini API response object:', JSON.stringify(data));
     if (data.candidates && data.candidates[0]?.content?.parts[0]?.text) {
       // Extract JSON from response text
-      const text = data.candidates[0].content.parts[0].text;
-      console.log("Gemini response:", text.substring(0, 200) + "..."); // Log partial response
-      const jsonMatch = text.match(/(\{[\s\S]*\})/);
-      if (jsonMatch && jsonMatch[0]) {
+      let text = data.candidates[0].content.parts[0].text;
+      console.log("[quizApi] Full Gemini response:", text);
+
+      // Pre-process: Remove markdown code blocks, trim whitespace, fix common Gemini formatting issues
+      text = text.replace(/```json[\s\S]*?```/g, s => s.replace(/```json|```/g, '').trim());
+      text = text.replace(/```[\s\S]*?```/g, s => s.replace(/```/g, '').trim());
+      text = text.replace(/\n/g, ' ');
+      text = text.replace(/\r/g, ' ');
+      text = text.replace(/\t/g, ' ');
+      text = text.replace(/\s+/g, ' ');
+      text = text.trim();
+
+      // Try to extract the largest valid JSON block
+      // This regex matches the largest {...} block in the response
+      const jsonMatches = [...text.matchAll(/\{[\s\S]*\}/g)];
+      let quizData = null;
+      for (const match of jsonMatches) {
+        let jsonStr = match[0];
+        // Post-process: Remove trailing commas, fix common Gemini mistakes
+        jsonStr = jsonStr.replace(/,\s*([}\]])/g, '$1');
         try {
-          const quizData = JSON.parse(jsonMatch[0]);
-          
+          quizData = JSON.parse(jsonStr);
           // Validate quiz data structure
           if (!quizData.questions || !Array.isArray(quizData.questions) || quizData.questions.length === 0) {
             console.error("Invalid quiz data: missing or empty questions array");
-            return createFallbackQuiz(subject);
+            quizData = null;
+            continue;
           }
-          
           // Validate each question has the required fields
+          let valid = true;
           for (const q of quizData.questions) {
             if (!q.question || !q.options || !Array.isArray(q.options) || q.correctOptionIndex === undefined) {
               console.error("Invalid question data", q);
-              return createFallbackQuiz(subject);
+              valid = false;
+              break;
             }
-            
             // Add explanation field if missing
             if (!q.explanation) {
-              q.explanation = `The correct answer is "${q.options[q.correctOptionIndex]}", which is the most accurate option based on standard definitions and practices in ${subject}.`;
+              q.explanation = `The correct answer is \"${q.options[q.correctOptionIndex]}\", which is the most accurate option based on standard definitions and practices in ${subject}.`;
             }
           }
-          
-          console.log("Quiz data successfully parsed and validated");
-          return quizData;
+          if (valid) {
+            console.log("Quiz data successfully parsed and validated");
+            return quizData;
+          }
         } catch (error) {
-          console.error("Error parsing quiz JSON:", error);
-          return createFallbackQuiz(subject);
+          console.error("Error parsing quiz JSON block:", error, jsonStr);
         }
       }
+      // If no valid quizData found after all matches
+      console.error("Couldn't extract valid quiz JSON from Gemini response. Raw response:", text);
+      return createFallbackQuiz(subject);
     }
-    
-    console.error("Couldn't extract valid quiz JSON from Gemini response");
+    console.error("Couldn't extract valid quiz JSON from Gemini response. No text part found.");
     return createFallbackQuiz(subject);
   } catch (error) {
     console.error('Error fetching quiz from Gemini:', error);

@@ -10,13 +10,16 @@ export const signUp = async (email, password, displayName = '') => {
     const userCredential = await createUserWithEmailAndPassword(auth, email, password);
     const user = userCredential.user;
     // Save user profile in Firestore
-    await setDoc(doc(db, 'users', user.uid), {
+    const profile = {
       email: user.email,
       displayName: displayName || user.email,
       joinDate: new Date().toISOString(),
       avatar: user.photoURL || '',
-    }, { merge: true });
-    return user;
+      uid: user.uid,
+    };
+    await setDoc(doc(db, 'users', user.uid), profile, { merge: true });
+    await AsyncStorage.setItem('user_data', JSON.stringify(profile));
+    return profile;
   } catch (error) {
     console.error('Signup error:', error);
     throw error;
@@ -28,9 +31,24 @@ export const login = async (email, password) => {
   try {
     const userCredential = await signInWithEmailAndPassword(auth, email, password);
     const user = userCredential.user;
-    // Optionally fetch user profile from Firestore
+    // Fetch user profile from Firestore
     const userDoc = await getDoc(doc(db, 'users', user.uid));
-    return { ...user, ...userDoc.data() };
+    let profile;
+    if (userDoc.exists() && userDoc.data()) {
+      profile = { ...userDoc.data(), email: user.email, uid: user.uid, avatar: user.photoURL || userDoc.data().avatar || '' };
+    } else {
+      // Create profile if doesn't exist
+      profile = {
+        email: user.email,
+        displayName: user.displayName || user.email,
+        joinDate: new Date().toISOString(),
+        avatar: user.photoURL || '',
+        uid: user.uid,
+      };
+      await setDoc(doc(db, 'users', user.uid), profile, { merge: true });
+    }
+    await AsyncStorage.setItem('user_data', JSON.stringify(profile));
+    return profile;
   } catch (error) {
     console.error('Login error:', error);
     throw error;
@@ -43,14 +61,16 @@ export const loginWithGoogle = async (idToken, accessToken) => {
     const credential = GoogleAuthProvider.credential(idToken, accessToken);
     const userCredential = await signInWithCredential(auth, credential);
     const user = userCredential.user;
-    // Save user profile in Firestore
-    await setDoc(doc(db, 'users', user.uid), {
+    const profile = {
       email: user.email,
       displayName: user.displayName || user.email,
       joinDate: new Date().toISOString(),
       avatar: user.photoURL || '',
-    }, { merge: true });
-    return user;
+      uid: user.uid,
+    };
+    await setDoc(doc(db, 'users', user.uid), profile, { merge: true });
+    await AsyncStorage.setItem('user_data', JSON.stringify(profile));
+    return profile;
   } catch (error) {
     console.error('Google login error:', error);
     throw error;
@@ -60,13 +80,37 @@ export const loginWithGoogle = async (idToken, accessToken) => {
 // Deprecated: register function (use signUp instead)
 
 /**
+ * Fetch user profile from Firestore by UID
+ * @param {string} uid - User UID
+ * @returns {Promise<object|null>} - User profile object or null
+ */
+export const getUserProfile = async (uid) => {
+  try {
+    console.log('Fetching user profile for UID:', uid);
+    const userDoc = await getDoc(doc(db, 'users', uid));
+    if (userDoc.exists() && userDoc.data()) {
+      const data = userDoc.data();
+      console.log('User profile data from Firestore:', data);
+      // Ensure UID is present in returned object
+      return { ...data, uid };
+    } else {
+      console.warn('User profile not found for UID:', uid);
+      return null;
+    }
+  } catch (error) {
+    console.error('Fetch user profile error:', error);
+    return null;
+  }
+};
+
+/**
  * Check if user is authenticated
  * @returns {Promise<boolean>} - True if authenticated
  */
 export const isAuthenticated = async () => {
   try {
-    const token = await AsyncStorage.getItem('token');
-    return !!token;
+    const userData = await AsyncStorage.getItem('user_data');
+    return !!userData;
   } catch (error) {
     console.error('Auth check error:', error);
     return false;

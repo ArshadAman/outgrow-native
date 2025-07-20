@@ -8,35 +8,44 @@ import {
   Image,
   Switch,
 } from "react-native";
-import AsyncStorage from "@react-native-async-storage/async-storage";
 import { Ionicons } from '@expo/vector-icons';
 import { useQuiz } from "../context/QuizContext";
 import { logout } from "../auth/authService";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { getNextNotificationsInfo } from '../utils/notificationUtils';
+import { useAuth } from '../auth/AuthContext';
+import { getUserProfile } from '../auth/authService';
+import LeaderboardService from '../services/LeaderboardService';
+import ProjectLibraryService from '../services/ProjectLibraryService';
+import { getSavedTips, getSavedQuizzes } from '../services/SavedContentService';
 
 export default function ProfileScreen({ navigation }) {
-  const { 
-    quizHistory, 
-    notificationsEnabled, 
-    toggleNotifications, 
-    sendTestNotification 
-  } = useQuiz();
-  const [user, setUser] = useState({
-    username: "OutGrow User",
-    email: "user@example.com",
-    joinDate: "June 2025",
-    avatar:
-      "https://ui-avatars.com/api/?name=OutGrow+User&background=0D8ABC&color=fff",
-  });
-  const [darkMode, setDarkMode] = useState(true);
-  const [loading, setLoading] = useState(true);
+  const { quizHistory, notificationsEnabled, toggleNotifications, sendTestNotification } = useQuiz();
+  const { user, loading: userLoading, refreshUser } = useAuth();
+  const [profile, setProfile] = useState(null);
   const [nextNotificationInfo, setNextNotificationInfo] = useState('Loading...');
+  const [leaderboard, setLeaderboard] = useState([]);
+  const [projects, setProjects] = useState([]);
+  const [savedQuizzes, setSavedQuizzesState] = useState({});
+  const [savedTips, setSavedTipsState] = useState({});
 
   useEffect(() => {
-    loadUserData();
     loadNotificationInfo();
-  }, [notificationsEnabled]);
+    if (user && user.uid) {
+      LeaderboardService.getLeaderboard().then(setLeaderboard);
+      ProjectLibraryService.getUserProjects(user.uid).then(setProjects);
+      getSavedQuizzes(user.uid).then(setSavedQuizzesState);
+      getSavedTips(user.uid).then(setSavedTipsState);
+      getUserProfile(user.uid).then((profileData) => {
+        console.log('Fetched profile data:', profileData);
+        setProfile(profileData);
+        if (profileData && !user.displayName) {
+          // Update context if we got better data
+          refreshUser();
+        }
+      });
+    }
+  }, [notificationsEnabled, user]);
 
   const loadNotificationInfo = async () => {
     try {
@@ -49,27 +58,6 @@ export default function ProfileScreen({ navigation }) {
     } catch (error) {
       console.error('Error loading notification info:', error);
       setNextNotificationInfo('Error loading schedule');
-    }
-  };
-
-  const loadUserData = async () => {
-    try {
-      setLoading(true);
-      const userToken = await AsyncStorage.getItem("token");
-      const userData = await AsyncStorage.getItem("user_data");
-
-      if (userData) {
-        const parsedUser = JSON.parse(userData);
-        setUser((prevUser) => ({
-          ...prevUser,
-          ...parsedUser,
-        }));
-      }
-
-      setLoading(false);
-    } catch (error) {
-      console.error("Error loading user data:", error);
-      setLoading(false);
     }
   };
 
@@ -133,23 +121,30 @@ export default function ProfileScreen({ navigation }) {
     }
   };
 
-  // Calculate quiz statistics
-  const totalQuizzes = quizHistory.length;
-  const totalQuestions = quizHistory.reduce(
-    (sum, quiz) => sum + quiz.totalQuestions,
-    0
-  );
-  const correctAnswers = quizHistory.reduce(
-    (sum, quiz) => sum + quiz.correctAnswers,
-    0
-  );
-  const accuracy =
-    totalQuestions > 0
-      ? Math.round((correctAnswers / totalQuestions) * 100)
-      : 0;
-
-  // Get streak (consecutive days with quizzes)
+  // Real analytics and progress
+  const totalQuizzes = Object.keys(savedQuizzes).length;
+  const totalTips = Object.keys(savedTips).length;
+  const totalProjects = projects.length;
+  const leaderboardRank = leaderboard.findIndex(l => l.userId === (user && user.uid)) + 1;
+  const userXP = leaderboard.find(l => l.userId === (user && user.uid))?.xp || 0;
+  // Example: streak and accuracy from quizHistory if available
+  const totalQuestions = quizHistory.reduce((sum, quiz) => sum + (quiz.totalQuestions || 0), 0);
+  const correctAnswers = quizHistory.reduce((sum, quiz) => sum + (quiz.correctAnswers || 0), 0);
+  const accuracy = totalQuestions > 0 ? Math.round((correctAnswers / totalQuestions) * 100) : 0;
   const streak = calculateStreak(quizHistory);
+  const achievements = [
+    { emoji: "🔥", title: "Streak Master", unlocked: streak >= 3 },
+    { emoji: "🎯", title: "Accuracy King", unlocked: accuracy >= 80 },
+    { emoji: "🧠", title: "Knowledge Seeker", unlocked: totalQuizzes >= 5 },
+    { emoji: "💎", title: "XP Pro", unlocked: userXP >= 1000 },
+  ];
+
+  const realName = profile?.displayName || profile?.name || profile?.username || 'User';
+  const realEmail = profile?.email || 'No email';
+  const joinDate = profile?.joinDate ? new Date(profile.joinDate).toLocaleDateString() : (profile?.createdAt ? new Date(profile.createdAt).toLocaleDateString() : 'Unknown');
+
+  console.log('ProfileScreen user data:', profile);
+  console.log('ProfileScreen display values:', { realName, realEmail, joinDate });
 
   return (
     <SafeAreaView className="flex-1 bg-[#111618]">
@@ -166,18 +161,18 @@ export default function ProfileScreen({ navigation }) {
           <View className="items-center mb-6">
             <View className="relative">
               <Image
-                source={{ uri: user.avatar }}
+                source={{ uri: profile?.avatar || profile?.photoURL || undefined }}
                 className="w-24 h-24 rounded-full border-4 border-[#0cb9f2]"
                 style={{ backgroundColor: "#232D3F" }}
               />
               <View className="absolute -bottom-1 -right-1 w-6 h-6 bg-[#34c759] rounded-full border-2 border-[#232D3F]" />
             </View>
             <Text className="text-white text-2xl font-bold mt-3 tracking-wide">
-              {user.username}
+              {realName}
             </Text>
-            <Text className="text-[#a2afb3] text-base">{user.email}</Text>
+            <Text className="text-[#a2afb3] text-base">{realEmail}</Text>
             <Text className="text-[#0cb9f2] text-sm mt-1 font-medium">
-              Member since {user.joinDate}
+              Member since {joinDate}
             </Text>
           </View>
 
@@ -227,12 +222,7 @@ export default function ProfileScreen({ navigation }) {
               Achievements
             </Text>
             <Text className="text-[#0cb9f2] text-sm font-medium">
-              {[
-                streak >= 3,
-                accuracy >= 80,
-                totalQuizzes >= 5,
-                false
-              ].filter(Boolean).length}/4
+              {achievements.filter(a => a.unlocked).length}/{achievements.length}
             </Text>
           </View>
           <View className="bg-[#181F2A] rounded-2xl p-4"
@@ -244,14 +234,7 @@ export default function ProfileScreen({ navigation }) {
                   elevation: 6
                 }}>
             <View className="flex-row flex-wrap gap-3">
-              {renderAchievementBadge("🔥", "Streak Master", streak >= 3)}
-              {renderAchievementBadge("🎯", "Accuracy King", accuracy >= 80)}
-              {renderAchievementBadge(
-                "🧠",
-                "Knowledge Seeker",
-                totalQuizzes >= 5
-              )}
-              {renderAchievementBadge("⚡", "Quick Thinker", false)}
+              {achievements.map((a, idx) => renderAchievementBadge(a.emoji, a.title, a.unlocked, idx))}
             </View>
           </View>
         </View>
@@ -265,7 +248,14 @@ export default function ProfileScreen({ navigation }) {
               style={{ maxWidth: '48%' }}
               onPress={() => navigation.navigate('SavedScreen')}
             >
-              <Ionicons name="bookmark" size={28} color="#0cb9f2" />
+              <View className="relative items-center">
+                <Ionicons name="bookmark" size={28} color="#0cb9f2" />
+                {totalQuizzes + totalTips > 0 && (
+                  <View className="absolute -top-2 -right-3 bg-[#34c759] rounded-full px-2 py-0.5">
+                    <Text className="text-white text-xs font-bold">{totalQuizzes + totalTips}</Text>
+                  </View>
+                )}
+              </View>
               <Text className="text-white text-base font-semibold mt-2">Saved</Text>
             </TouchableOpacity>
             <TouchableOpacity
@@ -273,7 +263,14 @@ export default function ProfileScreen({ navigation }) {
               style={{ maxWidth: '48%' }}
               onPress={() => navigation.navigate('LeaderboardScreen')}
             >
-              <Ionicons name="trophy" size={28} color="#ffd700" />
+              <View className="relative items-center">
+                <Ionicons name="trophy" size={28} color="#ffd700" />
+                {leaderboardRank > 0 && (
+                  <View className="absolute -top-2 -right-3 bg-[#0cb9f2] rounded-full px-2 py-0.5">
+                    <Text className="text-white text-xs font-bold">#{leaderboardRank}</Text>
+                  </View>
+                )}
+              </View>
               <Text className="text-white text-base font-semibold mt-2">Leaderboard</Text>
             </TouchableOpacity>
             <TouchableOpacity
@@ -281,7 +278,14 @@ export default function ProfileScreen({ navigation }) {
               style={{ maxWidth: '48%' }}
               onPress={() => navigation.navigate('ProjectLibraryScreen')}
             >
-              <Ionicons name="folder" size={28} color="#7e8a9a" />
+              <View className="relative items-center">
+                <Ionicons name="folder" size={28} color="#7e8a9a" />
+                {totalProjects > 0 && (
+                  <View className="absolute -top-2 -right-3 bg-[#ff9500] rounded-full px-2 py-0.5">
+                    <Text className="text-white text-xs font-bold">{totalProjects}</Text>
+                  </View>
+                )}
+              </View>
               <Text className="text-white text-base font-semibold mt-2">Projects</Text>
             </TouchableOpacity>
           </View>
@@ -298,24 +302,6 @@ export default function ProfileScreen({ navigation }) {
                   shadowRadius: 6,
                   elevation: 6
                 }}>
-            {/* Dark Mode Setting */}
-            <View className="flex-row justify-between items-center p-5 border-b border-[#232D3F]">
-              <View className="flex-1">
-                <View className="flex-row items-center mb-1">
-                  <Text className="text-white text-base font-semibold">Dark Mode</Text>
-                  <View className="ml-2 w-2 h-2 bg-[#0cb9f2] rounded-full" />
-                </View>
-                <Text className="text-[#a2afb3] text-sm">
-                  Toggle dark/light appearance
-                </Text>
-              </View>
-              <Switch
-                value={darkMode}
-                onValueChange={setDarkMode}
-                trackColor={{ false: "#3b4e54", true: "#0cb9f2" }}
-                thumbColor="#fff"
-              />
-            </View>
 
             {/* Notifications Setting */}
             <View className="flex-row justify-between items-center p-5 border-b border-[#232D3F]">
@@ -410,9 +396,10 @@ export default function ProfileScreen({ navigation }) {
 }
 
 // Helper function to render achievement badges
-function renderAchievementBadge(emoji, title, unlocked) {
+function renderAchievementBadge(emoji, title, unlocked, key) {
   return (
     <View
+      key={key}
       className={`rounded-xl p-3 mr-2 mb-2 items-center ${
         unlocked ? "bg-[#1e493e]" : "bg-[#232D3F]"
       }`}
@@ -440,6 +427,27 @@ function calculateStreak(quizHistory) {
     (a, b) => new Date(b.date) - new Date(a.date)
   );
 
-  // Simple streak implementation (could be enhanced)
-  return Math.min(sortedHistory.length, 7); // Cap at 7 for now
+  // Track unique days with at least one quiz completed
+  const days = new Set();
+  sortedHistory.forEach(q => {
+    // Use only the date part (YYYY-MM-DD)
+    const d = new Date(q.date);
+    const dayStr = d.toISOString().slice(0, 10);
+    days.add(dayStr);
+  });
+
+  // Streak is the number of consecutive days (from today backwards) with at least one quiz
+  let streak = 0;
+  let currentDate = new Date();
+  for (;;) {
+    const dayStr = currentDate.toISOString().slice(0, 10);
+    if (days.has(dayStr)) {
+      streak++;
+      // Move to previous day
+      currentDate.setDate(currentDate.getDate() - 1);
+    } else {
+      break;
+    }
+  }
+  return streak;
 }

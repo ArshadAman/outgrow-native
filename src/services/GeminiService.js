@@ -19,7 +19,9 @@ class GeminiService {
         }),
       });
       const data = await response.json();
-      // Parse Gemini response for generated content
+      // Log the full Gemini API response for debugging
+      console.log('[GeminiService] Full Gemini API response:', JSON.stringify(data));
+      // Return the raw text part for downstream parsing
       const result = data?.candidates?.[0]?.content?.parts?.[0]?.text || null;
       return result;
     } catch (error) {

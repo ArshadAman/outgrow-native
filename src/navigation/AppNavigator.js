@@ -68,7 +68,7 @@ function MainTabs() {
         component={DailyFeedScreen}
         options={{
           tabBarIcon: ({ color, focused }) => (
-            <MaterialCommunityIcons name={focused ? 'calendar-today' : 'calendar-today-outline'} size={24} color={color} />
+            <MaterialCommunityIcons name={focused ? 'calendar-today' : 'calendar-outline'} size={24} color={color} />
           ),
         }}
       />
@@ -122,11 +122,14 @@ export default function AppNavigator() {
     <RootStack.Navigator screenOptions={{ headerShown: false }} initialRouteName="App">
       <RootStack.Screen name="App" component={AppFlow} />
       {/* These screens can be accessed from any tab */}
+      <RootStack.Screen name="SavedScreen" component={SavedScreen} />
       <RootStack.Screen name="TechDetailScreen" component={TechDetailScreen} />
       <RootStack.Screen name="TipDetailScreen" component={TipDetailScreen} />
       <RootStack.Screen name="SavedQuizzesDetail" component={SavedQuizzesDetail} />
       <RootStack.Screen name="SavedTipsDetail" component={SavedTipsDetail} />
       <RootStack.Screen name="NotificationSettingsScreen" component={NotificationSettingsScreen} />
+      <RootStack.Screen name="ProjectLibraryScreen" component={ProjectLibraryScreen} />
+      <RootStack.Screen name="LeaderboardScreen" component={LeaderboardScreen} />
     </RootStack.Navigator>
   );
 }

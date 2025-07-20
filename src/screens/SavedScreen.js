@@ -1,165 +1,170 @@
-import React, { useState } from "react";
-import { View, Text, TouchableOpacity, ScrollView, ActivityIndicator } from "react-native";
-import AsyncStorage from '@react-native-async-storage/async-storage';
+import React, { useState, useEffect } from "react";
+import { View, Text, TouchableOpacity, ScrollView, RefreshControl, ActivityIndicator } from "react-native";
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import { SafeAreaView } from "react-native-safe-area-context";
+import { useAuth } from '../auth/AuthContext';
+import { getSavedQuizzes, getSavedTips } from '../services/SavedContentService';
+import { Ionicons } from '@expo/vector-icons';
 
 const tabList = ["Quizzes", "Tips"];
 
 export default function SavedScreen() {
   const [tab, setTab] = useState("Quizzes");
-  const [savedQuizzes, setSavedQuizzes] = useState({});
-  const [savedTips, setSavedTips] = useState({});
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+  const [savedQuizzes, setSavedQuizzes] = useState([]);
+  const [savedTips, setSavedTips] = useState([]);
   const navigation = useNavigation();
+  const { user } = useAuth();
 
-  useFocusEffect(
-    React.useCallback(() => {
-      loadSavedContent();
-    }, [])
-  );
-
-  const loadSavedContent = async () => {
+  // Load data from Firebase
+  const loadSavedData = async () => {
+    setLoading(true);
+    if (!user?.uid) {
+      setLoading(false);
+      return;
+    }
     try {
-      // Load saved quizzes
-      const savedQuizzesData = await AsyncStorage.getItem('saved_quizzes');
-      if (savedQuizzesData) {
-        setSavedQuizzes(JSON.parse(savedQuizzesData));
+      const quizzesObj = await getSavedQuizzes(user.uid);
+      const tipsObj = await getSavedTips(user.uid);
+      setSavedQuizzes(Array.isArray(quizzesObj) ? quizzesObj : Object.values(quizzesObj || {}));
+      // Convert tips object to array and attach key
+      let tipsArr = [];
+      if (Array.isArray(tipsObj)) {
+        tipsArr = tipsObj;
+      } else {
+        tipsArr = Object.entries(tipsObj || {}).map(([key, tip]) => ({ ...tip, key }));
       }
-
-      // Load saved tips
-      const savedTipsData = await AsyncStorage.getItem('saved_tips');
-      if (savedTipsData) {
-        setSavedTips(JSON.parse(savedTipsData));
-      }
+      setSavedTips(tipsArr);
     } catch (error) {
-      console.error('Error loading saved content:', error);
+      setSavedQuizzes([]);
+      setSavedTips([]);
     } finally {
       setLoading(false);
+      setRefreshing(false);
     }
   };
 
+  useFocusEffect(
+    React.useCallback(() => {
+      loadSavedData();
+    }, [user?.uid])
+  );
+
+  const onRefresh = () => {
+    setRefreshing(true);
+    loadSavedData();
+  };
+
   // Group quizzes by subject
-  const quizzesBySubject = Object.entries(savedQuizzes).reduce((acc, [key, quiz]) => {
-    const subject = quiz.subject;
-    if (!acc[subject]) {
-      acc[subject] = [];
-    }
+  const groupedQuizzes = savedQuizzes.reduce((acc, quiz) => {
+    const subject = quiz.subject || 'Other';
+    if (!acc[subject]) acc[subject] = [];
     acc[subject].push(quiz);
     return acc;
   }, {});
 
-  // Group tips by category (using techName as the category)
-  const tipsByCategory = Object.entries(savedTips).reduce((acc, [key, tip]) => {
-    const category = tip.techName || tip.category || 'General';
-    if (!acc[category]) {
-      acc[category] = [];
-    }
+  // Group tips by category
+  const groupedTips = savedTips.reduce((acc, tip) => {
+    const category = tip.category || tip.techName || 'Other';
+    if (!acc[category]) acc[category] = [];
     acc[category].push(tip);
     return acc;
   }, {});
 
-  const handleSubjectPress = (subject) => {
-    navigation.navigate('SavedQuizzesDetail', { subject, quizzes: quizzesBySubject[subject] });
-  };
-
-  const handleTipCategoryPress = (category) => {
-    navigation.navigate('SavedTipsDetail', { category, tips: tipsByCategory[category] });
+  const handleTopicPress = (topic, type) => {
+    if (type === 'quiz') {
+      navigation.navigate('SavedQuizzesDetail', { 
+        subject: topic, 
+        quizzes: groupedQuizzes[topic] || []
+      });
+    } else {
+      navigation.navigate('SavedTipsDetail', { 
+        category: topic, 
+        tips: groupedTips[topic] || []
+      });
+    }
   };
 
   if (loading) {
     return (
-      <View className="flex-1 bg-[#111618] justify-center items-center">
-        <ActivityIndicator size="large" color="#0cb9f2" />
-      </View>
+      <SafeAreaView className="flex-1 bg-[#111618]">
+        <View className="flex-1 justify-center items-center">
+          <ActivityIndicator size="large" color="#0cb9f2" />
+          <Text className="text-white text-lg mt-4">Loading saved content...</Text>
+        </View>
+      </SafeAreaView>
     );
   }
 
   return (
     <SafeAreaView className="flex-1 bg-[#111618]">
-      {/* Title & Settings */}
-      <View className="flex-row items-center bg-[#111618] p-4 pb-2 justify-between">
-        <Text className="text-white text-2xl font-bold flex-1 text-center">Saved</Text>
+      <View className="p-4">
+        <Text className="text-white text-2xl font-bold text-center">Saved</Text>
       </View>
-
       {/* Tabs */}
-      <View className="pb-3">
-        <View className="flex-row border-b border-[#3b4e54] px-4 gap-8">
+      <View className="pb-3 bg-[#181F2A] mx-4 rounded-xl">
+        <View className="flex-row p-2">
           {tabList.map((t) => (
             <TouchableOpacity
               key={t}
-              className={`flex flex-col items-center justify-center pb-[13px] pt-4 ${tab === t ? "border-b-[3px] border-b-white" : "border-b-[3px] border-b-transparent"}`}
+              className={`flex-1 py-3 mx-1 rounded-lg ${tab === t ? "bg-white/10" : "bg-transparent"}`}
               onPress={() => setTab(t)}
             >
-              <Text className={`text-sm font-bold tracking-[0.015em] ${tab === t ? "text-white" : "text-[#9cb2ba]"}`}>{t}</Text>
+              <Text style={{color: tab === t ? '#fff' : '#9cb2ba', fontWeight: 'bold', textAlign: 'center'}}>{t}</Text>
             </TouchableOpacity>
           ))}
         </View>
       </View>
-
       {/* Content */}
-      <ScrollView className="flex-1">
+      <ScrollView
+        className="flex-1 px-4 mt-4"
+        refreshControl={
+          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#0cb9f2" />
+        }
+      >
         {tab === "Quizzes" ? (
-          // Quizzes Tab Content
-          <>
-            {Object.entries(quizzesBySubject).map(([subject, quizzes]) => (
+          Object.keys(groupedQuizzes).length === 0 ? (
+            <View className="flex-1 justify-center items-center p-8 mt-20">
+              <Text className="text-[#9cb2ba] text-center text-lg">No saved quizzes found.</Text>
+              <Text className="text-[#9cb2ba] text-center text-sm mt-2">Pull down to refresh or save some quizzes to see them here.</Text>
+            </View>
+          ) : (
+            Object.entries(groupedQuizzes).map(([subject, quizzes]) => (
               <TouchableOpacity
                 key={subject}
-                className="p-4 border-b border-[#3b4e54]"
-                onPress={() => handleSubjectPress(subject)}
+                className="mb-2 p-4 bg-[#181F2A] border-b border-[#232D3F] flex-row items-center justify-between"
+                onPress={() => handleTopicPress(subject, 'quiz')}
               >
-                <View className="flex-row justify-between items-center">
-                  <View className="flex-1">
-                    <Text className="text-white text-lg font-bold">{subject}</Text>
-                    <Text className="text-[#9cb2ba] text-sm mt-1">
-                      {quizzes.length} saved {quizzes.length === 1 ? 'question' : 'questions'}
-                    </Text>
-                  </View>
-                  <Text className="text-[#0cb9f2] text-lg">→</Text>
+                <View>
+                  <Text className="text-white text-lg font-bold">{subject}</Text>
+                  <Text className="text-[#9cb2ba] text-sm mt-1">{quizzes.length} saved {quizzes.length === 1 ? 'question' : 'questions'}</Text>
                 </View>
+                <Ionicons name="arrow-forward-outline" size={22} color="#9cb2ba" />
               </TouchableOpacity>
-            ))}
-            
-            {Object.keys(quizzesBySubject).length === 0 && (
-              <View className="flex-1 justify-center items-center p-8">
-                <Text className="text-[#9cb2ba] text-center">
-                  No saved quizzes yet. Start a quiz and save interesting questions!
-                </Text>
-              </View>
-            )}
-          </>
+            ))
+          )
         ) : (
-          // Tips Tab Content
-          <>
-            {Object.entries(tipsByCategory).map(([category, tips]) => (
+          Object.keys(groupedTips).length === 0 ? (
+            <View className="flex-1 justify-center items-center p-8 mt-20">
+              <Text className="text-[#9cb2ba] text-center text-lg">No saved tips found.</Text>
+              <Text className="text-[#9cb2ba] text-center text-sm mt-2">Pull down to refresh or save some tips to see them here.</Text>
+            </View>
+          ) : (
+            Object.entries(groupedTips).map(([category, tips]) => (
               <TouchableOpacity
                 key={category}
-                className="p-4 border-b border-[#3b4e54]"
-                onPress={() => handleTipCategoryPress(category)}
+                className="mb-2 p-4 bg-[#181F2A] border-b border-[#232D3F] flex-row items-center justify-between"
+                onPress={() => handleTopicPress(category, 'tip')}
               >
-                <View className="flex-row justify-between items-center">
-                  <View className="flex-1">
-                    <Text className="text-white text-lg font-bold">{category}</Text>
-                    <Text className="text-[#9cb2ba] text-sm mt-1">
-                      {tips.length} saved {tips.length === 1 ? 'tip' : 'tips'}
-                    </Text>
-                    <Text className="text-[#9cb2ba] text-xs mt-1">
-                      Latest: {new Date(tips[tips.length - 1]?.timestamp).toLocaleDateString()}
-                    </Text>
-                  </View>
-                  <Text className="text-[#0cb9f2] text-lg">→</Text>
+                <View>
+                  <Text className="text-white text-lg font-bold">{category}</Text>
+                  <Text className="text-[#9cb2ba] text-sm mt-1">{tips.length} saved {tips.length === 1 ? 'tip' : 'tips'}</Text>
                 </View>
+                <Ionicons name="arrow-forward-outline" size={22} color="#9cb2ba" />
               </TouchableOpacity>
-            ))}
-            
-            {Object.keys(tipsByCategory).length === 0 && (
-              <View className="flex-1 justify-center items-center p-8">
-                <Text className="text-[#9cb2ba] text-center">
-                  No saved tips yet. Read some tips and save the ones you find useful!
-                </Text>
-              </View>
-            )}
-          </>
+            ))
+          )
         )}
       </ScrollView>
     </SafeAreaView>

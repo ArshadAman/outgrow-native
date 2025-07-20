@@ -14,7 +14,7 @@ import { useAuth } from '../auth/AuthContext';
 import { Ionicons } from "@expo/vector-icons";
 import { SafeAreaView } from "react-native-safe-area-context";
 
-  const QuizScreen = ({ navigation, route }) => {
+const QuizScreen = ({ navigation, route }) => {
     const {
       currentQuiz,
       isLoading,
@@ -34,6 +34,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
     const [score, setScore] = useState(0);
     const [quizStarted, setQuizStarted] = useState(false);
     const [savedQuizzes, setSavedQuizzesState] = useState({});
+    const [savedToggle, setSavedToggle] = useState(0);
 
   // Check for auto-start subject from notification
   useEffect(() => {
@@ -214,8 +215,8 @@ import { SafeAreaView } from "react-native-safe-area-context";
 
   // Load saved quizzes from local/Firestore
   useEffect(() => {
-    if (user) {
-      getSavedQuizzes(user.email || '').then((saved) => {
+    if (user?.uid) {
+      getSavedQuizzes(user.uid).then((saved) => {
         setSavedQuizzesState(saved);
       });
     }
@@ -224,6 +225,11 @@ import { SafeAreaView } from "react-native-safe-area-context";
   // Save/unsave quiz to local/Firestore
   const toggleSaveQuiz = async (questionIndex) => {
     try {
+      if (!user?.uid) {
+        console.error('No user UID available for saving quiz');
+        return;
+      }
+
       const question = currentQuiz.questions[questionIndex];
       const quizKey = `${currentQuiz.subject}_${questionIndex}`;
       const newSavedQuizzes = { ...savedQuizzes };
@@ -242,8 +248,12 @@ import { SafeAreaView } from "react-native-safe-area-context";
         };
       }
 
-      await setSavedQuizzes(user.email || '', newSavedQuizzes);
-      setSavedQuizzesState(newSavedQuizzes);
+      // Save to Firestore and local
+      await setSavedQuizzes(user.uid, newSavedQuizzes);
+      // Refetch from Firestore to ensure UI updates
+      const updated = await getSavedQuizzes(user.uid);
+      setSavedQuizzesState(updated);
+      setSavedToggle((t) => t + 1);
     } catch (error) {
       console.error("Error saving quiz:", error);
     }
@@ -316,7 +326,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
           {score}/{currentQuiz.questions.length} Correct
         </Text>
 
-        <ScrollView className="flex-1">
+        <ScrollView className="flex-1" key={savedToggle}>
           {currentQuiz.questions.map((q, idx) => {
             const userAnswer = selectedAnswers[idx];
             const correctAnswer = q.correctOptionIndex;
@@ -562,3 +572,5 @@ import { SafeAreaView } from "react-native-safe-area-context";
     </SafeAreaView>
   );
 }
+
+export default QuizScreen;
