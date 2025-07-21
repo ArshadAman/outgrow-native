@@ -21,12 +21,12 @@ export async function getSavedQuizzes(userId) {
       const firestoreData = docSnap.data().quizzes || {};
       console.log('Found Firestore saved quizzes:', Object.keys(firestoreData).length);
       // Cache locally
-      await AsyncStorage.setItem('saved_quizzes', JSON.stringify(firestoreData));
+          await AsyncStorage.setItem(`saved_quizzes_${userId}`, JSON.stringify(firestoreData));
       return firestoreData;
     } else {
       console.log('No Firestore document found, checking local storage');
       // Fallback to local
-      const local = await AsyncStorage.getItem('saved_quizzes');
+          const local = await AsyncStorage.getItem(`saved_quizzes_${userId}`);
       const localData = local ? JSON.parse(local) : {};
       console.log('Local saved quizzes:', Object.keys(localData).length);
       return localData;
@@ -35,7 +35,7 @@ export async function getSavedQuizzes(userId) {
     console.error('Error getting saved quizzes:', error);
     // Fallback to local storage
     try {
-      const local = await AsyncStorage.getItem('saved_quizzes');
+          const local = await AsyncStorage.getItem(`saved_quizzes_${userId}`);
       return local ? JSON.parse(local) : {};
     } catch (localError) {
       console.error('Error getting local saved quizzes:', localError);
@@ -45,7 +45,7 @@ export async function getSavedQuizzes(userId) {
 }
 
 export async function setSavedQuizzes(userId, quizzes) {
-  await AsyncStorage.setItem('saved_quizzes', JSON.stringify(quizzes));
+  await AsyncStorage.setItem(`saved_quizzes_${userId}`, JSON.stringify(quizzes));
   if (userId) {
     const quizDoc = doc(db, 'saved_quizzes', userId);
     await setDoc(quizDoc, { quizzes }); // Overwrite quizzes object, remove deleted keys
@@ -69,12 +69,12 @@ export async function getSavedTips(userId) {
       const firestoreData = docSnap.data().tips || {};
       console.log('Found Firestore saved tips:', Object.keys(firestoreData).length);
       // Cache locally
-      await AsyncStorage.setItem('saved_tips', JSON.stringify(firestoreData));
+          await AsyncStorage.setItem(`saved_tips_${userId}`, JSON.stringify(firestoreData));
       return firestoreData;
     } else {
       console.log('No Firestore tips document found, checking local storage');
       // Fallback to local
-      const local = await AsyncStorage.getItem('saved_tips');
+          const local = await AsyncStorage.getItem(`saved_tips_${userId}`);
       const localData = local ? JSON.parse(local) : {};
       console.log('Local saved tips:', Object.keys(localData).length);
       return localData;
@@ -83,7 +83,7 @@ export async function getSavedTips(userId) {
     console.error('Error getting saved tips:', error);
     // Fallback to local storage
     try {
-      const local = await AsyncStorage.getItem('saved_tips');
+          const local = await AsyncStorage.getItem(`saved_tips_${userId}`);
       return local ? JSON.parse(local) : {};
     } catch (localError) {
       console.error('Error getting local saved tips:', localError);
@@ -93,7 +93,7 @@ export async function getSavedTips(userId) {
 }
 
 export async function setSavedTips(userId, tips) {
-  await AsyncStorage.setItem('saved_tips', JSON.stringify(tips));
+  await AsyncStorage.setItem(`saved_tips_${userId}`, JSON.stringify(tips));
   if (userId) {
     const tipsDoc = doc(db, 'saved_tips', userId);
     await setDoc(tipsDoc, { tips }); // Overwrite tips object, remove deleted keys

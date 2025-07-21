@@ -16,7 +16,8 @@ import {
 } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { signupSchema } from '../utils/validation';
-import { signUp } from '../auth/authService';
+import { signUp, signOutUser } from '../auth/authService';
+import { useAuth } from '../auth/AuthContext';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { StyleSheet, Dimensions } from 'react-native';
 
@@ -34,6 +35,7 @@ const SYMBOL_COUNT = 18; // Fewer for clarity and performance
 const SYMBOL_AREA_WIDTH = 350;
 
 export default function SignupScreen({ navigation }) {
+  const { refreshUser } = useAuth();
   const separatorRef = useRef(null);
   const googleBtnRef = useRef(null);
   const [values, setValues] = useState({ name: '', email: '', password: '', confirmPassword: '' });
@@ -225,9 +227,12 @@ export default function SignupScreen({ navigation }) {
       await signupSchema.validate(values, { abortEarly: false });
       setLoading(true);
       try {
+        // Always sign out before new signup to clear previous user
+        await signOutUser();
         await signUp(values.email, values.password, values.name);
+        refreshUser();
         Alert.alert('Signup Success', 'Account created!');
-        navigation.navigate('LoginScreen');
+        navigation.replace('OnboardingScreen');
       } catch (apiError) {
         Alert.alert('Signup Failed', apiError.message || 'Unable to create account');
       }

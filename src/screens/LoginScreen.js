@@ -17,7 +17,8 @@ import {
 } from "react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { loginSchema } from "../utils/validation";
-import { login, loginWithGoogle } from "../auth/authService";
+import { login, loginWithGoogle, signOutUser } from "../auth/authService";
+import { useAuth } from "../auth/AuthContext";
 import * as Google from 'expo-auth-session/providers/google';
 import * as WebBrowser from 'expo-web-browser';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
@@ -52,6 +53,7 @@ const SOCIALS = [
 ];
 
 export default function LoginScreen({ navigation }) {
+  const { refreshUser } = useAuth();
   const [values, setValues] = useState({ email: "", password: "" });
   const [errors, setErrors] = useState({});
   const [loading, setLoading] = useState(false);
@@ -223,7 +225,10 @@ export default function LoginScreen({ navigation }) {
       await loginSchema.validate(values, { abortEarly: false });
       setLoading(true);
       try {
+        // Always sign out before login to clear previous user
+        await signOutUser();
         const userData = await login(values.email, values.password);
+        await refreshUser();
         navigation.replace("MainTabs");
       } catch (apiError) {
         Alert.alert("Login Failed", apiError.message || "Invalid credentials");
@@ -247,7 +252,10 @@ export default function LoginScreen({ navigation }) {
     if (response?.type === 'success') {
       const { id_token, access_token } = response.params;
       loginWithGoogle(id_token, access_token)
-        .then(() => navigation.replace("MainTabs"))
+        .then(async () => {
+          await refreshUser();
+          navigation.replace("MainTabs");
+        })
         .catch((err) => Alert.alert("Google Login Failed", err.message || "Unable to login with Google"));
     }
   }, [response]);

@@ -16,6 +16,7 @@ import DailyFeedScreen from '../screens/DailyFeedScreen';
 import TechStackScreen from '../screens/TechStackScreen';
 import ProjectLibraryScreen from '../screens/ProjectLibraryScreen';
 import LeaderboardScreen from '../screens/LeaderboardScreen';
+import OnboardingScreen from '../screens/OnboardingScreen';
 import { Text } from 'react-native';
 import * as Notifications from 'expo-notifications';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -130,6 +131,7 @@ export default function AppNavigator() {
       <RootStack.Screen name="NotificationSettingsScreen" component={NotificationSettingsScreen} />
       <RootStack.Screen name="ProjectLibraryScreen" component={ProjectLibraryScreen} />
       <RootStack.Screen name="LeaderboardScreen" component={LeaderboardScreen} />
+      <RootStack.Screen name="OnboardingScreen" component={OnboardingScreen} />
     </RootStack.Navigator>
   );
 }

@@ -18,12 +18,24 @@ function FeedCard({ item, onComplete, navigation }) {
 
   const handleQuizSelect = (idx) => {
     setSelected(idx);
-    setShowResult(true);
     if (idx === answerIdx) {
+      setShowResult(true);
       setTimeout(() => {
         setQuizCompleted(true);
-        onComplete();
+        if (typeof onComplete === 'function') {
+          onComplete();
+        }
+        if (navigation && navigation.replace) {
+          navigation.replace('App');
+        }
       }, 600);
+    } else {
+      setShowResult(true);
+      // Do not grant XP or complete quiz, just show incorrect and allow retry
+      setTimeout(() => {
+        setShowResult(false);
+        setSelected(null);
+      }, 1200);
     }
   };
 
@@ -307,7 +319,9 @@ function FeedCard({ item, onComplete, navigation }) {
           ))}
           {showResult && (
             <Text className={`mt-2 text-base font-bold ${selected === answerIdx ? 'text-[#34c759]' : 'text-[#ff3b30]'}`}>
-              {selected === answerIdx ? 'Correct! XP Granted.' : `Incorrect. Correct answer: ${String.fromCharCode(65 + answerIdx)}. ${item.content.options[answerIdx]}`}
+              {selected === answerIdx
+                ? 'Correct! XP Granted.'
+                : `Incorrect. Correct answer: ${String.fromCharCode(65 + answerIdx)}. ${item.content.options[answerIdx]}`}
             </Text>
           )}
         </View>

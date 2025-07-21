@@ -4,6 +4,17 @@ import { createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut, Go
 import { doc, setDoc, getDoc } from 'firebase/firestore';
 import * as Google from 'expo-auth-session/providers/google';
 
+// Sign out user (for use in signup/login flows)
+export const signOutUser = async () => {
+  try {
+    await AsyncStorage.multiRemove(['token', 'user_data']);
+    await signOut(auth);
+    return true;
+  } catch (error) {
+    console.error('Sign out error:', error);
+    return false;
+  }
+};
 // Email/password signup
 export const signUp = async (email, password, displayName = '') => {
   try {
