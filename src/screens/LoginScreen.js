@@ -229,7 +229,12 @@ export default function LoginScreen({ navigation }) {
         await signOutUser();
         const userData = await login(values.email, values.password);
         await refreshUser();
-        navigation.replace("MainTabs");
+        // Check onboarding status
+        if (userData && userData.onboardingComplete) {
+          navigation.replace("MainTabs");
+        } else {
+          navigation.replace("OnboardingScreen");
+        }
       } catch (apiError) {
         Alert.alert("Login Failed", apiError.message || "Invalid credentials");
       }
@@ -252,9 +257,13 @@ export default function LoginScreen({ navigation }) {
     if (response?.type === 'success') {
       const { id_token, access_token } = response.params;
       loginWithGoogle(id_token, access_token)
-        .then(async () => {
+        .then(async (userData) => {
           await refreshUser();
-          navigation.replace("MainTabs");
+          if (userData && userData.onboardingComplete) {
+            navigation.replace("MainTabs");
+          } else {
+            navigation.replace("OnboardingScreen");
+          }
         })
         .catch((err) => Alert.alert("Google Login Failed", err.message || "Unable to login with Google"));
     }
